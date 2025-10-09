@@ -1,0 +1,23 @@
+{
+  "name": "dojo-backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@small-tech/auto-encrypt": "^4.3.0",
+    "activitypub-express": "^4.4.2",
+    "connect-history-api-fallback": "^2.0.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "mongodb": "^6.20.0",
+    "morgan": "^1.10.1",
+    "node-graceful-shutdown": "^1.1.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
