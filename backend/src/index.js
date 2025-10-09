@@ -12,7 +12,7 @@ const ActivitypubExpress = require('activitypub-express')
 
 const { version } = require('../package.json')
 const { DOMAIN, KEY_PATH, CERT_PATH, CA_PATH, PORT_HTTPS, DB_URL, DB_NAME, PROXY_MODE, ADMIN_SECRET, USE_ATTACHMENTS } = process.env
-
+ 
 const app = express()
 const client = new MongoClient(DB_URL)
 const sslOptions = {
@@ -23,7 +23,7 @@ const sslOptions = {
 const icon = {
   type: 'Image',
   mediaType: 'image/jpeg',
-  url: `https://${DOMAIN}/f/guppe.png`
+  url: `https://${DOMAIN}/f/dojo.png`
 }
 
 const routes = {
@@ -43,7 +43,7 @@ const routes = {
   likes: '/s/:id/likes'
 }
 const apex = ActivitypubExpress({
-  name: 'Guppe Groups',
+  name: 'Dojo',
   version,
   domain: DOMAIN,
   actorParam: 'actor',
@@ -51,7 +51,7 @@ const apex = ActivitypubExpress({
   itemsPerPage: 100,
   // delivery done in workers only in production
   offlineMode: process.env.NODE_ENV === 'production',
-  context: require('./data/context.json'),
+  context: require('../data/context.json'),
   routes
 })
 
@@ -67,10 +67,10 @@ app.use(
   }
 )
 
-async function createGuppeActor (...args) {
+async function createDojoActor (...args) {
   const actor = await apex.createActor(...args)
   if (USE_ATTACHMENTS) {
-    actor.attachment = require('./data/attachments.json')
+    actor.attachment = require('../data/attachments.json')
   }
   return actor
 }
@@ -86,7 +86,7 @@ async function actorOnDemand (req, res, next) {
     if (!(await apex.store.getObject(actorIRI)) && actor.length <= 255) {
       console.log(`Creating group: ${actor}`)
       const summary = `I'm a group about ${actor}. Follow me to get all the group posts. Tag me to share with the group. Create other groups by searching for or tagging @yourGroupName@${DOMAIN}`
-      const actorObj = await createGuppeActor(actor, `${actor} group`, summary, icon, 'Group')
+      const actorObj = await createDojoActor(actor, `${actor} group`, summary, icon, 'Group')
       await apex.store.saveObject(actorObj)
     }
   } catch (err) { return next(err) }
@@ -104,7 +104,7 @@ apex.net.inbox.post.splice(
       next()
     }
   },
-  // Lots of servers are delivering inappropriate activities to Guppe, move the filtering up earlier in the process to save work
+  // Lots of servers are delivering inappropriate activities to Dojo, move the filtering up earlier in the process to save work
   function inboxFilter (req, res, next) {
     try {
       const groupIRI = apex.utils.usernameToIRI(req.params[apex.actorParam])
@@ -202,7 +202,7 @@ app.on('apex-inbox', async ({ actor, activity, recipient, object }) => {
   }
 })
 
-/// Guppe web setup
+/// Dojo web setup
 // html/static routes
 app.use(history({
   index: '/web/index.html',
@@ -273,7 +273,7 @@ client.connect()
     })
     apex.systemUser = await apex.store.getObject(apex.utils.usernameToIRI('system_service'), true)
     if (!apex.systemUser) {
-      const systemUser = await createGuppeActor('system_service', `${DOMAIN} system service`, `${DOMAIN} system service`, icon, 'Service')
+      const systemUser = await createDojoActor('system_service', `${DOMAIN} system service`, `${DOMAIN} system service`, icon, 'Service')
       await apex.store.saveObject(systemUser)
       apex.systemUser = systemUser
     }
@@ -295,13 +295,13 @@ client.connect()
       server = https.createServer(sslOptions, app)
     }
     server.listen(PORT_HTTPS, function () {
-      console.log('Guppe server listening on port ' + PORT_HTTPS)
+      console.log('Dojo server listening on port ' + PORT_HTTPS)
     })
     onShutdown(async () => {
       await new Promise((resolve, reject) => {
         server.close(err => (err ? reject(err) : resolve()))
       })
       await client.close()
-      console.log('Guppe server closed')
+      console.log('Dojo server closed')
     })
   })
