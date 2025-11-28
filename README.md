@@ -7,10 +7,16 @@ A federated social platform prototype built with:
 
 ## Quick Start
 ```bash
-# 2. Install dependencies
-cd backend && npm install express activitypub-express mongodb dotenv morgan
-cd ../frontend && npm install react react-dom
 
-# 3. Start servers
+
+#frontend
+cd frontend
 npm run dev
-```
+
+
+#backend
+cd backend
+npm run dev
+
+#mongo database:
+sudo docker compose up

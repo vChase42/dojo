@@ -11,6 +11,7 @@
     "@small-tech/auto-encrypt": "^4.3.0",
     "activitypub-express": "^4.4.2",
     "connect-history-api-fallback": "^2.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "mongodb": "^6.20.0",

@@ -9,11 +9,13 @@ const morgan = require('morgan')
 const history = require('connect-history-api-fallback')
 const { onShutdown } = require('node-graceful-shutdown')
 const ActivitypubExpress = require('activitypub-express')
+const cors = require('cors')
 
 const { version } = require('../package.json')
 const { DOMAIN, KEY_PATH, CERT_PATH, CA_PATH, PORT_HTTPS, DB_URL, DB_NAME, PROXY_MODE, ADMIN_SECRET, USE_ATTACHMENTS } = process.env
- 
+
 const app = express()
+app.use(cors({ origin: 'http://localhost:5173' }))
 const client = new MongoClient(DB_URL)
 const sslOptions = {
   key: KEY_PATH && fs.readFileSync(path.join(__dirname, KEY_PATH)),
@@ -278,25 +280,35 @@ client.connect()
       apex.systemUser = systemUser
     }
     let server
+    const USE_HTTPS = process.env.USE_HTTPS === 'true'
+    const PORT_HTTP = process.env.PORT_HTTP || 3000
+    const PORT = USE_HTTPS ? PORT_HTTPS : PORT_HTTP
+
     if (process.env.NODE_ENV === 'production') {
       if (PROXY_MODE) {
         server = http.createServer(app)
         try {
-          // boolean or number
           app.set('trust proxy', JSON.parse(PROXY_MODE))
-        } catch (ignore) {
-          // string
+        } catch {
           app.set('trust proxy', PROXY_MODE)
         }
       } else {
         server = AutoEncrypt.https.createServer({ domains: [DOMAIN] }, app)
       }
     } else {
-      server = https.createServer(sslOptions, app)
+      if (USE_HTTPS) {
+        server = https.createServer(sslOptions, app)
+        console.log(`🔒 HTTPS dev mode active`)
+      } else {
+        server = http.createServer(app)
+        console.log(`🌐 HTTP dev mode active`)
+      }
     }
-    server.listen(PORT_HTTPS, function () {
-      console.log('Dojo server listening on port ' + PORT_HTTPS)
+
+    server.listen(PORT, () => {
+      console.log(`✅ Dojo server listening on ${USE_HTTPS ? 'https' : 'http'}://${DOMAIN}:${PORT}`)
     })
+
     onShutdown(async () => {
       await new Promise((resolve, reject) => {
         server.close(err => (err ? reject(err) : resolve()))
