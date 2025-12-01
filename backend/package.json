@@ -5,11 +5,12 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/start.ts"
   },
   "dependencies": {
     "@small-tech/auto-encrypt": "^4.3.0",
     "activitypub-express": "^4.4.2",
+    "bcrypt": "^6.0.0",
     "connect-history-api-fallback": "^2.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -19,6 +20,9 @@
     "node-graceful-shutdown": "^1.1.5"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
     "nodemon": "^3.1.10"
   }
 }
