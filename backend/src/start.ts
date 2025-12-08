@@ -79,14 +79,14 @@ async function main() {
   // 📌 Instantiate Services
   // ----------------------------
   const authService = new AuthService(db);
-  const userService = new UserService(db);
   const activityPubService = new ActivityPubService(apex, db);
+  const userService = new UserService(db);
   
   
   // ----------------------------
   // 📌 Mount Routes
   // ----------------------------
-  app.use("/api/auth", authRoutes(authService, userService));
+  app.use("/api/auth", authRoutes(authService, userService,activityPubService));
   app.use("/api", postRoutes(authService, userService, activityPubService));
   app.use("/api", publicRoutes(db, apex));
 

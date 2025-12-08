@@ -1,6 +1,7 @@
 // src/services/userService.ts
 import { Collection, Db, ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
+import { ActivityPubService } from "./activitypubService";
 
 export interface UserRecord {
   _id?: ObjectId;

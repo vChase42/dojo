@@ -8,42 +8,29 @@ export class ActivityPubService {
     this.apex = apex;
     this.db = db;
   }
+  async createPersonActor(username: string, displayName?: string) {
+    const actorIRI = this.apex.utils.usernameToIRI(username);
 
-  /**
-   * Create a Note + Create Activity for a given actor.
-   * This inserts into the outbox and triggers federation delivery.
-   */
-  async createPost(actorId: string, content: string) {
-    const apex = this.apex;
+    // Safety: never overwrite an existing actor
+    const existing = await this.apex.store.getObject(actorIRI);
+    if (existing) {
+      return existing;
+    }
 
-    // 1. Build the Note object
-    const note = {
-      type: "Note",
-      attributedTo: actorId,
-      content,
-      to: [apex.consts.publicAddress],
-      cc: []
-    };
-
-    // 2. Save the Note into the AP object store
-    const savedNote = await apex.store.saveObject(note);
-
-    // 3. Build the Create activity
-    const createActivity = await apex.buildActivity(
-      "Create",
-      actorId,
-      [apex.consts.publicAddress],
-      { object: [savedNote] }
+    const actor = await this.apex.createActor(
+      username,                         // preferredUsername
+      displayName || username,          // name
+      `User ${username}`,               // summary
+      {
+        type: "Image",
+        mediaType: "image/jpeg",
+        url: `https://${this.apex.domain}/f/dojo.png`,
+      },
+      "Person"                          // ✅ THIS FIXES YOUR BUG
     );
 
-    // 4. Add the activity to the actor's outbox (this triggers delivery)
-    await apex.addToOutbox({ id: actorId }, createActivity);
-
-    // 5. Return the final stored note/activity to controller
-    return {
-      note: savedNote,
-      activity: createActivity
-    };
+    await this.apex.store.saveObject(actor);
+    return actor.id;
   }
 
   /**

@@ -3,12 +3,14 @@
 import { Request, Response } from "express";
 import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
+import { ActivityPubService } from "../services/activitypubService";
 
 const isProd = process.env.NODE_ENV === "production";
 
 export function authController(
   authService: AuthService,
-  userService: UserService
+  userService: UserService,
+  activityPubService: ActivityPubService,
 ) {
   return {
     /** POST /api/signup */
@@ -24,7 +26,7 @@ export function authController(
 
         // Create ActivityPub actor externally
         // (your logic will call apex.createActor here)
-        const actorId = `https://localhost/u/${username}`;
+        const actorId = await activityPubService.createPersonActor(username);
 
         const user = await userService.createUser(username, password, actorId);
 

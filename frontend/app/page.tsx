@@ -19,6 +19,7 @@ export default function Home() {
       }
 
       const data = await res.json();
+      console.log(data);
       setPosts(data.items || []); // format from your backend
     } catch (err) {
       console.error(err);
@@ -54,7 +55,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-100 dark:bg-black p-6">
+    <div className="flex items-center justify-center bg-zinc-100 dark:bg-black p-6">
       <div className="w-full max-w-xl flex flex-col gap-6">
 
         {/* Composer */}
@@ -74,7 +75,7 @@ export default function Home() {
               className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white"
             >
               <div className="text-base leading-relaxed">
-                {post.content}
+                {post.object[0].content[0]}
               </div>
             </div>
           ))}

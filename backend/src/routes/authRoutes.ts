@@ -5,13 +5,15 @@ import { authController } from "../controllers/authController";
 import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
 import { requireAuth } from "../middleware/requireAuth";
+import { ActivityPubService } from "../services/activitypubService";
 
 export function authRoutes(
   authService: AuthService,
-  userService: UserService
+  userService: UserService,
+  activityPubService: ActivityPubService
 ) {
   const router = Router();
-  const ctrl = authController(authService, userService);
+  const ctrl = authController(authService, userService, activityPubService);
 
   //
   // Public auth endpoints
