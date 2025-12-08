@@ -1,9 +1,9 @@
 // src/services/userService.ts
-import { Collection, Db } from "mongodb";
+import { Collection, Db, ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
 
 export interface UserRecord {
-  _id?: string;
+  _id?: ObjectId;
   username: string;
   passwordHash: string;
   actorId: string;      // maps local user → ActivityPub "Person"
@@ -47,6 +47,7 @@ export class UserService {
 
   /** Look up a user by session-owned userId (optional helper) */
   async findById(id: string) {
-    return this.users.findOne({ _id: id });
+    return this.users.findOne({ _id: new ObjectId(id) });
   }
+
 }

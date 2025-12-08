@@ -4,6 +4,7 @@ import { Router } from "express";
 import { authController } from "../controllers/authController";
 import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
+import { requireAuth } from "../middleware/requireAuth";
 
 export function authRoutes(
   authService: AuthService,
@@ -12,14 +13,25 @@ export function authRoutes(
   const router = Router();
   const ctrl = authController(authService, userService);
 
+  //
+  // Public auth endpoints
+  //
+
   // Create account
   router.post("/signup", ctrl.signup);
 
   // Log in
   router.post("/login", ctrl.login);
 
+  //
+  // Protected auth endpoints
+  //
+
+  // Return currently authenticated user
+  router.get("/me", requireAuth(authService, userService), ctrl.me);
+
   // Log out
-  router.post("/logout", ctrl.logout);
+  router.post("/logout", requireAuth(authService, userService), ctrl.logout);
 
   return router;
 }

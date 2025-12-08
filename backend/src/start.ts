@@ -5,9 +5,9 @@ import http from "http";
 import https from "https";
 import fs from "fs";
 import path from "path";
-import { MongoClient } from "mongodb";
+import { Db, MongoClient } from "mongodb";
 import { onShutdown } from "node-graceful-shutdown";
-
+import cookieParser from "cookie-parser";
 // SERVICES
 import { AuthService } from "./services/authService";
 import { UserService } from "./services/userService";
@@ -25,6 +25,9 @@ import type { APEnv } from "./server/activitypub";
 
 async function main() {
   console.log("🚀 Starting backend…");
+
+
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
   const {
     DOMAIN,
@@ -45,23 +48,24 @@ async function main() {
   // ----------------------------
   // 📌 Connect MongoDB
   // ----------------------------
-  console.log("🗄  Connecting MongoDB…");
-  const client = new MongoClient(DB_URL);
-  await client.connect();
-  const db = client.db(DB_NAME);
+
+  const { client, db } = await connectWithRetry({
+    url: DB_URL,
+    dbName: DB_NAME,
+    retries: 3,
+    delayMs: 5000,
+  });
+  
 
   // ----------------------------
   // 📌 Setup Express app
   // ----------------------------
   const app = express();
 
-  app.use(
-    cors({
-      origin: "http://localhost:5173",
-      credentials: true
-    })
-  );
 
+  
+  
+  app.use(cookieParser());
   app.use(express.json());
 
   // ----------------------------
@@ -70,14 +74,15 @@ async function main() {
   console.log("📡 Initializing ActivityPub…");
   
   const apex = await setupActivityPub(app, process.env as unknown as APEnv, db);
-
+  
   // ----------------------------
   // 📌 Instantiate Services
   // ----------------------------
   const authService = new AuthService(db);
   const userService = new UserService(db);
   const activityPubService = new ActivityPubService(apex, db);
-
+  
+  
   // ----------------------------
   // 📌 Mount Routes
   // ----------------------------
@@ -132,3 +137,61 @@ main().catch((err) => {
   console.error("❌ Fatal startup error:", err);
   process.exit(1);
 });
+
+interface ConnectWithRetryOptions {
+  url: string;
+  dbName: string;
+  retries?: number;
+  delayMs?: number;
+}
+
+interface ConnectWithRetryResult {
+  client: MongoClient;
+  db: Db;
+}
+
+export async function connectWithRetry({
+  url,
+  dbName,
+  retries = 3,
+  delayMs = 5000,
+}: ConnectWithRetryOptions): Promise<ConnectWithRetryResult> {
+  let attempt = 0;
+
+  while (attempt < retries) {
+    attempt++;
+
+    console.log(
+      `🗄️  [MongoDB] Attempt ${attempt}/${retries} — connecting to ${url} ...`
+    );
+
+    try {
+      const client = new MongoClient(url);
+      await client.connect();
+
+      console.log(
+        `✅ [MongoDB] Connected successfully on attempt ${attempt}`
+      );
+
+      const db = client.db(dbName);
+      return { client, db };
+    } catch (err: any) {
+      console.error(`❌ [MongoDB] Connection failed on attempt ${attempt}`);
+      console.error(`   Error: ${err.message}`);
+
+      if (attempt >= retries) {
+        console.error("💥 [MongoDB] All retry attempts failed. Giving up.");
+        throw err;
+      }
+
+      console.log(
+        `⏳ [MongoDB] Retrying in ${delayMs / 1000} seconds...\n`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  // Should never reach here, but TS requires a return or throw.
+  throw new Error("Unexpected error in connectWithRetry()");
+}

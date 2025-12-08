@@ -5,7 +5,7 @@ export default function Test() {
   const [data, setData] = useState<any>(null)
 
   useEffect(() => {
-    fetch('http://localhost:3000/u/user1', { headers: { Accept: 'application/activity+json' } })
+    fetch('/u/user1', { headers: { Accept: 'application/activity+json' } })
       .then(res => res.json())
       .then(setData)
       .catch(console.error)

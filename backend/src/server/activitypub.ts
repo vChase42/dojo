@@ -2,6 +2,7 @@
 import { Application } from "express";
 // Force TS to treat it as any
 const ActivitypubExpress = require("activitypub-express") as any;
+import express from "express";
 
 import path from "path";
 import fs from "fs";
@@ -62,6 +63,10 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
   apex.store.db = db;
   await apex.store.setup();
 
+  app.use(
+    express.json({ type: apex.consts.jsonldTypes }),
+    express.urlencoded({ extended: true })
+  );
   // Attach apex to Express
   app.use(
     apex,
@@ -191,6 +196,14 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
     .post(actorOnDemand, apex.net.inbox.post)
     .get(actorOnDemand, apex.net.inbox.get);
 
+  const outboxPostPipeline = apex.net.outbox.post;
+
+  // Only insert if missing
+  if (!outboxPostPipeline.includes(apex.net.validators.jsonld)) {
+    outboxPostPipeline.unshift(apex.net.validators.jsonld);
+  }
+
+  
   app.route(routes.outbox)
     .get(actorOnDemand, apex.net.outbox.get)
     .post(apex.net.outbox.post); // ⚠️ WILL BE RESTRICTED LATER BY AUTH WRAPPER

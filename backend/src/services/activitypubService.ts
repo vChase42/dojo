@@ -1,7 +1,7 @@
 // src/services/activitypubService.ts
 
 export class ActivityPubService {
-  private apex: any;
+  public apex: any;
   private db: any;
 
   constructor(apex: any, db: any) {
@@ -33,7 +33,7 @@ export class ActivityPubService {
       "Create",
       actorId,
       [apex.consts.publicAddress],
-      { object: savedNote.id }
+      { object: [savedNote] }
     );
 
     // 4. Add the activity to the actor's outbox (this triggers delivery)

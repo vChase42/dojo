@@ -24,7 +24,7 @@ export function authController(
 
         // Create ActivityPub actor externally
         // (your logic will call apex.createActor here)
-        const actorId = `http://localhost:3000/u/${username}`;
+        const actorId = `https://localhost/u/${username}`;
 
         const user = await userService.createUser(username, password, actorId);
 
@@ -38,6 +38,7 @@ export function authController(
     /** POST /api/login */
     login: async (req: Request, res: Response) => {
       try {
+
         const { username, password } = req.body;
 
         if (!username || !password) {
@@ -61,12 +62,13 @@ export function authController(
 
         // Set HttpOnly cookie
         res.cookie("sessionId", sessionId, {
-          httpOnly: true,
-          secure: isProd, // only secure in prod
-          sameSite: "lax",
+          httpOnly: false,
+          secure: true, 
+          sameSite: "none",
           path: "/",
           maxAge: 1000 * 60 * 60 * 24, // 1 day
         });
+        
 
         return res.json({ ok: true, user: { username: user.username } });
       } catch (err: any) {
@@ -97,5 +99,12 @@ export function authController(
         return res.status(500).json({ error: "Logout failed" });
       }
     },
+    // inside authController
+
+    me: async (req: Request, res: Response) => {
+      // requireAuth already sets req.user
+      res.json({ username: req.user.username });
+    },
+
   };
 }

@@ -1,0 +1,17 @@
+{
+    local_certs
+}
+
+localhost {
+    tls internal
+
+
+    @backend {
+        path /api/*
+        path /u/*
+        path /m/*
+    }
+    reverse_proxy @backend http://localhost:3000
+
+    reverse_proxy http://localhost:5173
+}
