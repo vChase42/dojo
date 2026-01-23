@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMe } from "../hooks/me";
 import { useAuth } from "../hooks/useAuth";
@@ -32,6 +31,8 @@ export default function Header() {
         <Link href="/" className="text-xl font-bold">
           dojo
         </Link>
+        <Link href="/threads">Threads</Link>
+
 
         <nav className="flex gap-4 text-sm items-center">
           

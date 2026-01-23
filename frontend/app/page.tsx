@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMe } from "./hooks/me";
 
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
   const [text, setText] = useState("");
+  const {data:user, isLoading} = useMe();
+
 
   // Load the logged-in user's outbox
   async function loadPosts() {
     try {
+
+
       const res = await fetch("/api/outbox", {
         credentials: "include",
       });
@@ -19,7 +24,6 @@ export default function Home() {
       }
 
       const data = await res.json();
-      console.log(data);
       setPosts(data.items || []); // format from your backend
     } catch (err) {
       console.error(err);
@@ -27,32 +31,37 @@ export default function Home() {
   }
 
   useEffect(() => {
-    loadPosts();
-  }, []);
-
-  // Post on Enter
-  async function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== "Enter" || text.trim() === "") return;
-
-    try {
-      const res = await fetch("/api/post", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text }),
-      });
-
-      if (!res.ok) {
-        console.error("Failed to create post");
-        return;
-      }
-
-      setText("");
+    if(user){
       loadPosts();
-    } catch (err) {
-      console.error(err);
     }
+  }, [isLoading,user]);
+
+// Post on Enter
+async function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== "Enter" || text.trim() === "") return;
+
+  try {
+    const res = await fetch("/api/post", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: text,
+        context: user.actorId, // 👈 post to own wall
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Failed to create post");
+      return;
+    }
+
+    setText("");
+    loadPosts();
+  } catch (err) {
+    console.error(err);
   }
+}
 
   return (
     <div className="flex items-center justify-center bg-zinc-100 dark:bg-black p-6">
