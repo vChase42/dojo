@@ -105,7 +105,7 @@ export function authController(
 
     me: async (req: Request, res: Response) => {
       // requireAuth already sets req.user
-      res.json({ username: req.user.username });
+      res.json({ username: req.user.username, actorId: req.user.actorId });
     },
 
   };

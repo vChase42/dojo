@@ -6,23 +6,55 @@ import { postController } from "../controllers/postController";
 import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
 import { ActivityPubService } from "../services/activitypubService";
+import { NoteStatsService } from "../services/NoteStatsService";
 
 export function postRoutes(
   auth: AuthService,
   users: UserService,
-  ap: ActivityPubService
+  ap: ActivityPubService,
+  ns: NoteStatsService
 ) {
   const router = Router();
-  const ctrl = postController(ap);
+  const ctrl = postController(ap, ns);
 
-  // Create a new post as the logged-in user
+  /**
+   * Threads
+   */
+
+  // Create a new thread
+  router.post(
+    "/thread",
+    requireAuth(auth, users),
+    ctrl.createThread
+  );
+
+  // List all threads (local, forum index)
+  router.get(
+    "/threads",
+    ctrl.getThreads
+  );
+
+  // Get a single thread by id
+  router.get(
+    "/thread/:id",
+    ctrl.getThread
+  );
+
+  /**
+   * Posts
+   */
+
+  // Create a post (wall post, thread post, or reply)
   router.post(
     "/post",
     requireAuth(auth, users),
     ctrl.createPost
   );
 
-  // Optional: fetch the logged-in user's outbox as plain JSON
+  /**
+   * Outbox (local convenience endpoint)
+   */
+
   router.get(
     "/outbox",
     requireAuth(auth, users),

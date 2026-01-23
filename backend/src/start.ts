@@ -6,6 +6,7 @@ import https from "https";
 import fs from "fs";
 import path from "path";
 import { Db, MongoClient } from "mongodb";
+import { Pool } from "pg";
 import { onShutdown } from "node-graceful-shutdown";
 import cookieParser from "cookie-parser";
 // SERVICES
@@ -21,6 +22,7 @@ import { publicRoutes } from "./routes/publicRoutes";
 // AP SERVER
 import { setupActivityPub } from "./server/activitypub";
 import type { APEnv } from "./server/activitypub";
+import { NoteStatsService } from "./services/NoteStatsService";
 
 
 async function main() {
@@ -56,6 +58,19 @@ async function main() {
     delayMs: 5000,
   });
   
+  // ----------------------------
+  // 📌 Connect Postgres
+  // ----------------------------
+  const pgPool = new Pool({
+    host: process.env.PG_HOST || "localhost",
+    port: Number(process.env.PG_PORT) || 5432,
+    user: process.env.PG_USER || "dojo",
+    password: process.env.PG_PASSWORD || "dojo",
+    database: process.env.PG_DB || "dojo",
+  });
+
+  await pgPool.query("SELECT 1"); // sanity check
+  console.log("✅ [Postgres] Connected successfully");
 
   // ----------------------------
   // 📌 Setup Express app
@@ -79,7 +94,8 @@ async function main() {
   // 📌 Instantiate Services
   // ----------------------------
   const authService = new AuthService(db);
-  const activityPubService = new ActivityPubService(apex, db);
+  const activityPubService = new ActivityPubService(apex, db, pgPool);
+  const noteStatsService = new NoteStatsService(pgPool);
   const userService = new UserService(db);
   
   
@@ -87,7 +103,7 @@ async function main() {
   // 📌 Mount Routes
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService));
+  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService));
   app.use("/api", publicRoutes(db, apex));
 
   // ----------------------------

@@ -4,9 +4,6 @@ import { Application } from "express";
 const ActivitypubExpress = require("activitypub-express") as any;
 import express from "express";
 
-import path from "path";
-import fs from "fs";
-
 export interface APEnv {
   DOMAIN: string;
   KEY_PATH?: string;
@@ -33,6 +30,7 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
   // Define AP routes
   const routes = {
     actor: "/u/:actor",
+    group: "/g/:group",
     object: "/o/:id",
     activity: "/s/:id",
     inbox: "/u/:actor/inbox",
@@ -90,22 +88,31 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
     return actor;
   }
 
-  async function actorOnDemand(req: any, res: any, next: any) {
-    const actor = req.params.actor;
-    if (!actor) return next();
+  async function actorOnDemand(req: any, res:any , next:any) {
+    const isUser = !!req.params.actor;
+    const isGroup = !!req.params.group;
 
-    const actorIRI = apex.utils.usernameToIRI(actor);
+    if (isUser) {
+      // NEVER auto-create Person actors
+      return next();
+    }
+
+    if (!isGroup) {
+      return next();
+    }
+
+    const groupName = req.params.group;
+    const actorIRI = apex.utils.usernameToIRI(groupName);
 
     try {
-      if (!(await apex.store.getObject(actorIRI)) && actor.length <= 255) {
-        console.log(`Creating group: ${actor}`);
-
-        const summary = `I'm a group about ${actor}. Follow for updates.`;
+      const existing = await apex.store.getObject(actorIRI);
+      if (!existing) {
+        console.log(`Creating group actor: ${groupName}`);
 
         const group = await createActor(
-          actor,
-          `${actor} group`,
-          summary,
+          groupName,
+          `${groupName} group`,
+          `Group about ${groupName}`,
           icon,
           "Group"
         );
@@ -118,7 +125,6 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
 
     next();
   }
-
   /** Inbox filter + logger */
   const acceptablePublicActivities = ["delete", "update"];
 
@@ -209,6 +215,7 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
     .post(apex.net.outbox.post); // ⚠️ WILL BE RESTRICTED LATER BY AUTH WRAPPER
 
   app.get(routes.actor, actorOnDemand, apex.net.actor.get);
+  app.get(routes.group, actorOnDemand, apex.net.actor.get);
   app.get(routes.followers, actorOnDemand, apex.net.followers.get);
   app.get(routes.following, actorOnDemand, apex.net.following.get);
   app.get(routes.liked, actorOnDemand, apex.net.liked.get);
@@ -216,6 +223,56 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
   app.get(routes.activity, apex.net.activityStream.get);
   app.get(routes.shares, apex.net.shares.get);
   app.get(routes.likes, apex.net.likes.get);
+app.get("/t/:id", async (req, res) => {
+  const { id } = req.params;
+  const page = req.query.page;
+
+  const threadIri = `https://${DOMAIN}/t/${id}`;
+
+  // Fetch thread object
+  const thread = await apex.store.getObject(threadIri);
+  if (!thread) {
+    return res.status(404).json({ error: "Thread not found" });
+  }
+
+  // Paging requested → OrderedCollectionPage
+  if (page) {
+    const pageNum = Number(page) || 1;
+    const PAGE_SIZE = 20;
+
+    const notes = await db
+      .collection("objects")
+      .find({ type: "Note", context: threadIri })
+      .sort({ published: 1 })
+      .skip((pageNum - 1) * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .toArray();
+
+    return res.json({
+      "@context": "https://www.w3.org/ns/activitystreams",
+      id: `${threadIri}?page=${pageNum}`,
+      type: "OrderedCollectionPage",
+      partOf: threadIri,
+      orderedItems: notes.map((n:any) => n.id),
+      next: notes.length === PAGE_SIZE
+        ? `${threadIri}?page=${pageNum + 1}`
+        : undefined,
+    });
+  }
+
+  // No paging → OrderedCollection metadata
+  return res.json({
+    "@context": "https://www.w3.org/ns/activitystreams",
+    id: threadIri,
+    type: "OrderedCollection",
+    name: thread.name,
+    totalItems: await db.collection("objects").countDocuments({
+      type: "Note",
+      context: threadIri,
+    }),
+    first: `${threadIri}?page=1`,
+  });
+});
 
   app.get(
     "/.well-known/webfinger",
