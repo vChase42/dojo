@@ -55,8 +55,6 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
           return res.status(400).json({ error: "content is required" });
         }
 
-        console.log("the context thats being posted to!: " + context);
-
         const result = await ap.createPost(
           user.actorId,
           content,
@@ -65,12 +63,12 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
             inReplyTo,
             to,
             cc,
+            published: new Date().toISOString(),
           }
         );
 
         //adding it to the collection is also a locally managed side effect.
         if (context) {
-          console.log("dude no bro come on------------------");
           await ap.addNoteToOrderedCollection(user.actorId, context, result.noteId);
         }
 

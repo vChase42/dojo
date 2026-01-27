@@ -205,7 +205,6 @@ app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
   if (!thread.orderedItems.includes(noteIri)) {
     thread.orderedItems.unshift(noteIri);
     thread.totalItems = (thread.totalItems || 0) + 1;
-    console.log(thread);
     await apex.store.updateObject(thread, inner.attributedTo, true);
   }
 });
@@ -224,8 +223,6 @@ app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
         break;
       }
       case "add": {
-
-        console.log("THIS WUD BE AMAZING IF IT RAN");
         const target = activity.target?.[0] || activity.target;
         const object = activity.object?.[0] || activity.object;
 

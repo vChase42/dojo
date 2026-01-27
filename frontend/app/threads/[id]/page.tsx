@@ -24,6 +24,33 @@ export default function ThreadPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [replyOpen, setReplyOpen] = useState<ReplyState>({});
   const [rootText, setRootText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  //scroll position save between refreshes.
+  useEffect(() => {
+    const saveScroll = () => {
+      sessionStorage.setItem(
+        "thread-scroll-y",
+        window.scrollY.toString()
+      );
+    };
+
+    window.addEventListener("beforeunload", saveScroll);
+
+    return () => {
+      window.removeEventListener("beforeunload", saveScroll);
+    };
+  }, []);
+
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("thread-scroll-y");
+    if (!saved) return;
+    const y = Number(saved);
+    window.scrollTo(0,y);
+  },[loading]);
+
+
 
   useEffect(() => {
     load();
@@ -32,10 +59,9 @@ export default function ThreadPage() {
   async function load() {
     const t = await getThread(threadId);
     const p = await getThreadPosts(threadId);
-    console.log("post");
-    console.log(p[0]);
     setThread(t);
     setPosts(p);
+    setLoading(false);
   }
 
   async function submitRootPost() {
@@ -137,20 +163,22 @@ export default function ThreadPage() {
     <main className="forum">
       <h1>{thread.name}</h1>
 
-      <div>
-        {tree.map((post) => (
-          <PostRow key={post.id} post={post} />
-        ))}
-      </div>
+      <div className="thread-surface">
+        <div>
+          {tree.map((post) => (
+            <PostRow key={post.id} post={post} />
+          ))}
+        </div>
 
-      <div className="root-reply">
-        <h3>Reply</h3>
-        <textarea
-          rows={5}
-          value={rootText}
-          onChange={(e) => setRootText(e.target.value)}
-        />
-        <button onClick={submitRootPost}>Post</button>
+        <div className="root-reply">
+          <h3>Reply</h3>
+          <textarea
+            rows={5}
+            value={rootText}
+            onChange={(e) => setRootText(e.target.value)}
+            />
+          <button onClick={submitRootPost}>Post</button>
+        </div>
       </div>
     </main>
   );

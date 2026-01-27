@@ -173,8 +173,6 @@ async addNoteToOrderedCollection(
     target: threadIri,
     to: ["https://www.w3.org/ns/activitystreams#Public"],
   };
-  console.log(outboxUrl);
-  console.log(actorId);
 
   const response = await fetch(outboxUrl, {
     method: "POST",
@@ -192,7 +190,6 @@ async addNoteToOrderedCollection(
 
   const activityId = response.headers.get("location") ?? undefined;
 
-  console.log("seriously? it worked?: " + activityId);
   return { activityId };
 }
 
