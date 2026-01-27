@@ -15,6 +15,7 @@ export interface Post {
   attributedTo: string;
   created?: string;
   inReplyTo?: string;
+  [key: string]: any;
 }
 
 const API_BASE = "/api";
@@ -43,6 +44,56 @@ async function apiFetch<T>(
 /**
  * THREADS
  */
+// src/services/activitypubService.t
+
+
+export async function getThreadPosts(threadId: string): Promise<Post[]> {
+  const thread = await getThread(threadId);
+  if (!thread) return [];
+
+  const items =
+    thread.orderedItems ??
+    thread.items ??
+    [];
+
+  if (!Array.isArray(items)) return [];
+
+  const fetches = items.map(async (iri) => {
+    if (typeof iri !== "string") return null;
+
+    try {
+      const res = await fetch(iri, {
+        headers: {
+          Accept: "application/activity+json",
+        },
+      });
+
+      if (!res.ok) return null;
+
+      const obj = await res.json();
+      const note = Array.isArray(obj) ? obj[0] : obj;
+
+      if (!note || note.type !== "Note") return null;
+
+      return {
+        id: note.id,
+        content: note.content ?? "",
+        attributedTo: note.attributedTo ?? null,
+        created: note.published ?? null,
+        inReplyTo: note.inReplyTo ?? null,
+        context: note.context ?? null,
+      } satisfies Post;
+    } catch {
+      return null;
+    }
+  });
+
+  const results = await Promise.all(fetches);
+
+  // Preserve order, drop nulls
+  return results.filter(Boolean) as Post[];
+}
+
 
 export async function getThreads(): Promise<Thread[]> {
   const data = await apiFetch<{ items: Thread[] }>("/threads");
@@ -64,6 +115,8 @@ export async function createThread(
     body: JSON.stringify({ title, slug }),
   });
 }
+
+
 
 /**
  * POSTS

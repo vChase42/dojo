@@ -84,7 +84,7 @@ async function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
               className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white"
             >
               <div className="text-base leading-relaxed">
-                {post.object[0].content[0]}
+                {post.object[0].content && post.object[0].content[0]}
               </div>
             </div>
           ))}

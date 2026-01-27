@@ -55,6 +55,8 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
           return res.status(400).json({ error: "content is required" });
         }
 
+        console.log("the context thats being posted to!: " + context);
+
         const result = await ap.createPost(
           user.actorId,
           content,
@@ -66,10 +68,18 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
           }
         );
 
+        //adding it to the collection is also a locally managed side effect.
+        if (context) {
+          console.log("dude no bro come on------------------");
+          await ap.addNoteToOrderedCollection(user.actorId, context, result.noteId);
+        }
+
+
         // Stats updates are local side effects
         if (inReplyTo) {
           await ns.incrementReplies(inReplyTo);
         }
+
 
         return res.status(201).json({
           ok: true,
@@ -104,13 +114,13 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
       try {
         const { id } = req.params;
         const thread = await ap.getThread(id);
-
+        
         if (!thread) {
           return res.status(404).json({ error: "Thread not found" });
         }
-
-        res.json({ ok: true, thread });
-
+        
+        res.json({ thread });
+        
       } catch (err: any) {
         console.error("getThread error:", err);
         res.status(500).json({ error: "Failed to fetch thread" });

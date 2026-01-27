@@ -10,6 +10,8 @@ export class ActivityPubService {
     this.mdb = mdb;
     this.pg = pgPool;
   }
+
+
   async createPersonActor(username: string, displayName?: string) {
     const actorIRI = this.apex.utils.usernameToIRI(username);
 
@@ -66,6 +68,7 @@ export class ActivityPubService {
       name: title,
       attributedTo: createdBy,
       slug: idPart,
+      orderedItems: [],
       totalItems: 0,
       first: `${threadId}?page=1`,
       published: published ?? new Date().toISOString(),
@@ -124,14 +127,19 @@ export class ActivityPubService {
     }
 
     const activityId = response.headers.get("location") ?? undefined;
-
-    // APEx stores the Note and wraps it in Create internally.
-    // We may not know the Note ID synchronously, so return what we have.
+    const activity = activityId
+      ? await this.apex.store.getActivity(activityId)
+      : null;
+    
+    const noteId =
+      activity?.object?.[0]?.id ??
+      activity?.object?.id ??
+      undefined;    
     return {
-      noteId: activityId ?? "",
+      noteId: noteId ?? "",
       activityId,
-    };
-  }
+ };
+}
 
   async getThread(idOrIri: string) {
     const iri = idOrIri.startsWith("http")
@@ -149,6 +157,47 @@ export class ActivityPubService {
       .limit(limit)
       .toArray();
   }
+
+async addNoteToOrderedCollection(
+  actorId: string,
+  threadIri: string,
+  noteIri: string
+) {
+  const outboxUrl = `${actorId}/outbox`;
+
+  const addActivity = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    type: "Add",
+    attributedTo: actorId,
+    object: noteIri,
+    target: threadIri,
+    to: ["https://www.w3.org/ns/activitystreams#Public"],
+  };
+  console.log(outboxUrl);
+  console.log(actorId);
+
+  const response = await fetch(outboxUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/activity+json",
+      "Authorization": `Bearer ${process.env.ADMIN_SECRET}`,
+    },
+    body: JSON.stringify(addActivity),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Outbox rejected Add: ${errText}`);
+  }
+
+  const activityId = response.headers.get("location") ?? undefined;
+
+  console.log("seriously? it worked?: " + activityId);
+  return { activityId };
+}
+
+
+
 
   /**
    * Fetch the logged-in user's outbox items (local only).

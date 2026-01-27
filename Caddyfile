@@ -9,6 +9,13 @@ localhost {
     @backend {
         path /api/*
         path /u/*
+        path /g/*
+        path /t/*
+        path /o/*
+        path /s/*
+        path /.well-known/*
+        path /nodeinfo*        
+        path /u/*
         path /m/*
     }
     reverse_proxy @backend http://localhost:3000

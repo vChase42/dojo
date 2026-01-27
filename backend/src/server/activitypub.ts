@@ -167,6 +167,49 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
       next();
     }
   );
+  /** Apply local Add activities to thread collections */
+app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
+
+  if (activity.type !== "Create") return;
+
+  const inner = activity.object?.[0];
+  if (!inner || inner.type?.toLowerCase() !== "add") return;
+
+  const target =
+    inner.target?.[0] ??
+    inner.target;
+
+  const object =
+    inner.object?.[0] ??
+    inner.object;
+
+  if (
+    typeof target !== "string" ||
+    !target.startsWith(`https://${DOMAIN}/t/`)
+  ) {
+    return;
+  }
+
+  const noteIri =
+    typeof object === "string"
+      ? object
+      : object.id;
+
+  if (!noteIri) return;
+
+  const thread = await apex.store.getObject(target);
+  if (!thread || thread.type !== "OrderedCollection") return;
+
+  thread.orderedItems = thread.orderedItems || [];
+
+  if (!thread.orderedItems.includes(noteIri)) {
+    thread.orderedItems.unshift(noteIri);
+    thread.totalItems = (thread.totalItems || 0) + 1;
+    console.log(thread);
+    await apex.store.updateObject(thread, inner.attributedTo, true);
+  }
+});
+
 
   /** Auto accept follows & auto announce */
   app.on("apex-inbox" as any, async ({ actor, activity, recipient }: any) => {
@@ -178,6 +221,30 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
           cc: actor.id,
         });
         apex.addToOutbox(recipient, share);
+        break;
+      }
+      case "add": {
+
+        console.log("THIS WUD BE AMAZING IF IT RAN");
+        const target = activity.target?.[0] || activity.target;
+        const object = activity.object?.[0] || activity.object;
+
+        if (!target || !object) return;
+
+        // Only allow local thread collections
+        if (!target.startsWith(`https://${DOMAIN}/t/`)) return;
+
+        const thread = await apex.store.getObject(target);
+        if (!thread || thread.type !== "OrderedCollection") return;
+
+        thread.orderedItems = thread.orderedItems || [];
+
+        if (!thread.orderedItems.includes(object.id ?? object)) {
+          thread.orderedItems.unshift(object.id ?? object);
+          thread.totalItems = (thread.totalItems || 0) + 1;
+          await apex.store.saveObject(thread);
+        }
+
         break;
       }
 
@@ -240,12 +307,16 @@ app.get("/t/:id", async (req, res) => {
     const pageNum = Number(page) || 1;
     const PAGE_SIZE = 20;
 
+    const ids = thread.orderedItems || [];
+
+    const pageItems = ids.slice(
+      (pageNum - 1) * PAGE_SIZE,
+      pageNum * PAGE_SIZE
+    );
+
     const notes = await db
       .collection("objects")
-      .find({ type: "Note", context: threadIri })
-      .sort({ published: 1 })
-      .skip((pageNum - 1) * PAGE_SIZE)
-      .limit(PAGE_SIZE)
+      .find({ id: { $in: pageItems } })
       .toArray();
 
     return res.json({
