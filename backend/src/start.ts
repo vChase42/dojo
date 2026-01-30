@@ -57,6 +57,8 @@ async function main() {
     retries: 3,
     delayMs: 5000,
   });
+
+  
   
   // ----------------------------
   // 📌 Connect Postgres
@@ -72,6 +74,16 @@ async function main() {
   await pgPool.query("SELECT 1"); // sanity check
   console.log("✅ [Postgres] Connected successfully");
 
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS note_stats (
+      note_id TEXT PRIMARY KEY,
+      replies INTEGER NOT NULL DEFAULT 0,
+      ups INTEGER NOT NULL DEFAULT 0,
+      downs INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  
   // ----------------------------
   // 📌 Setup Express app
   // ----------------------------
@@ -94,7 +106,7 @@ async function main() {
   // 📌 Instantiate Services
   // ----------------------------
   const authService = new AuthService(db);
-  const activityPubService = new ActivityPubService(apex, db, pgPool);
+  const activityPubService = new ActivityPubService(apex, db);
   const noteStatsService = new NoteStatsService(pgPool);
   const userService = new UserService(db);
   

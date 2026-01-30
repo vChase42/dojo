@@ -2,13 +2,11 @@
 
 export class ActivityPubService {
   public apex: any;
-  private mdb: any;
-  private pg: any;
+  public mdb: any;
 
-  constructor(apex: any, mdb: any, pgPool: any) {
+  constructor(apex: any, mdb: any) {
     this.apex = apex;
     this.mdb = mdb;
-    this.pg = pgPool;
   }
 
 
@@ -18,7 +16,7 @@ export class ActivityPubService {
     // Safety: never overwrite an existing actor
     const existing = await this.apex.store.getObject(actorIRI);
     if (existing) {
-      return existing;
+      return existing.id;
     }
 
     const actor = await this.apex.createActor(
@@ -141,7 +139,7 @@ export class ActivityPubService {
  };
 }
 
-  async getThread(idOrIri: string) {
+  async getCollection(idOrIri: string) {
     const iri = idOrIri.startsWith("http")
       ? idOrIri
       : `https://${this.apex.domain}/t/${idOrIri}`;
@@ -193,19 +191,15 @@ async addNoteToOrderedCollection(
   return { activityId };
 }
 
-
-
-
-  /**
-   * Fetch the logged-in user's outbox items (local only).
-   * Not federated — your UI uses this if you want your own rendering.
-   */
-  async getOutbox(actorId: string, limit = 20) {
-    return this.mdb
-      .collection("streams")
-      .find({ actor: actorId, type: "Create" })
-      .sort({ _id: -1 })
-      .limit(limit)
-      .toArray();
+  async getOutbox(actor: any, page?: number) {
+    // console.log(actor);
+    const actorNew = await this.apex.store.getObject(actor.actorId);
+    // console.log(actorNew);
+    return this.apex.getOutbox(actorNew, page, true);
   }
+
+  async getActor(actorId: string){
+    return await this.apex.store.getObject(actorId);
+  }
+
 }

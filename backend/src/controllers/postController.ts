@@ -111,7 +111,7 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
     async getThread(req: Request, res: Response) {
       try {
         const { id } = req.params;
-        const thread = await ap.getThread(id);
+        const thread = await ap.getCollection(id);
         
         if (!thread) {
           return res.status(404).json({ error: "Thread not found" });
@@ -132,13 +132,13 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
     async getMyOutbox(req: Request, res: Response) {
       try {
         const user = req.user;
-        const posts = await ap.getOutbox(user.actorId);
+        const posts = await ap.getOutbox(user);
 
         res.json({
-          ok: true,
-          items: posts,
+          collection: posts,
         });
 
+        
       } catch (err: any) {
         console.error("getMyOutbox error:", err);
         res.status(500).json({ error: "Failed to fetch outbox" });

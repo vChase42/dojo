@@ -40,6 +40,7 @@ body {
    LAYOUT
    ========================= */
 
+/* should fix the below padding here to work on many screens */
 main {
   background: transparent;
   margin-left:10%;
@@ -192,6 +193,7 @@ textarea:focus {
   margin-top: 32px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+  margin-bottom: 32px;
 }
 
 .root-reply h3 {
