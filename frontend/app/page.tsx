@@ -1,3 +1,11 @@
+/*
+translate this file into outbox style messaging.
+then, what. i need to fix the getcollection logic in the backend to be essentially passthrough. should be fine.
+refactor getcollection logic.
+clean up frontend functions as per previous step. 
+
+*/
+
 "use client";
 
 import { useEffect, useState } from "react";
