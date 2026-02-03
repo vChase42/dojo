@@ -129,13 +129,13 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
      * GET /api/outbox
      * Return the logged-in user's posts (local only)
      */
-    async getMyOutbox(req: Request, res: Response) {
+    async getPost(req: Request, res: Response) {
       try {
-        const user = req.user;
-        const posts = await ap.getOutbox(user);
-
+        const {id} = req.params;
+        const post = ap.getPost(id);
+        
         res.json({
-          collection: posts,
+          post,
         });
 
         
@@ -143,6 +143,19 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
         console.error("getMyOutbox error:", err);
         res.status(500).json({ error: "Failed to fetch outbox" });
       }
-    }
+    },
+
+    async getWall(req: Request, res: Response){
+      try {
+        const user = req.user;
+        // const { page } = req.params;
+        ap.getWall(user);
+
+        //stub
+      } catch (err: any){
+        console.error("getWall error:", err);
+        res.status(500).json({ error: "Failed to fetch getWall " });
+      }
+    },
   };
 }

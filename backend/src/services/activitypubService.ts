@@ -1,4 +1,5 @@
 // src/services/activitypubService.ts
+import { UserRecord } from "./userService";
 
 export class ActivityPubService {
   public apex: any;
@@ -147,6 +148,8 @@ export class ActivityPubService {
     return this.apex.store.getObject(iri);
   }
 
+
+  //replace the ordered collections with notes. simplify it. and then, this thing below will have to query by... tags? what? still confused a little.
   async getThreads(limit = 50) {
     return this.mdb
       .collection("objects")
@@ -191,11 +194,16 @@ async addNoteToOrderedCollection(
   return { activityId };
 }
 
-  async getOutbox(actor: any, page?: number) {
-    // console.log(actor);
-    const actorNew = await this.apex.store.getObject(actor.actorId);
-    // console.log(actorNew);
-    return this.apex.getOutbox(actorNew, page, true);
+  async getPost(id: string){
+    return this.apex.store.getObject(id);
+  }
+
+  async getWall(user: UserRecord, page?: number) {
+    const actor = await this.apex.store.getObject(user.actorId);
+    const outbox = await this.apex.getOutbox(actor, 0, true);
+
+    //filter the above out and return it later! Then postcontroller will spice the the with reply and like stats.
+    return this.apex.getOutbox(actor, page, true);
   }
 
   async getActor(actorId: string){

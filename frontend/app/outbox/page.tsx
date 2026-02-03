@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useMe } from "../hooks/me";
+import { getActor, iriFromValue } from "../services/threadService";
+import { log } from "console";
 
 /**
  * TimelineItem represents a single ActivityPub activity
@@ -21,7 +23,7 @@ type TimelineItem = {
 };
 
 export default function Home() {
-  const [posts, setPosts] = useState<TimelineItem[]>([]);
+  const [items, setItems] = useState<TimelineItem[]>([]);
   const { data: user, isLoading } = useMe();
 
   /**
@@ -49,11 +51,29 @@ export default function Home() {
   /**
    * Load the current actor's outbox and render it
    * as a local activity timeline.
-   */
-  async function loadPosts() {
+  */
+ async function loadOutboxStream() {
+
+  if(!user || !user.actorId){
+      console.error("No user logged in");
+      return;
+    } 
+    
     try {
-      const res = await fetch("/api/outbox", {
-        credentials: "include",
+      //FETCH DATA
+      const actor = await getActor(user?.actorId);
+      if(!actor){
+        console.error("getActor failed");
+        return;
+      }
+
+      const outboxIri = iriFromValue(actor.outbox);
+
+      if(!outboxIri) return;
+      const res = await fetch(outboxIri, {
+        headers:{
+          Accept: "Application/activity+json"
+        }
       });
 
       if (!res.ok) {
@@ -61,21 +81,25 @@ export default function Home() {
         return;
       }
 
-      const data = await res.json();
-      const firstPage = data.collection.first[0];
+      const outbox = await res.json();
+      const firstPage = iriFromValue(outbox.first);
 
+      if(!firstPage) return;
       const pageRes = await fetch(firstPage, {
         headers: {
           Accept: "application/activity+json",
         },
       });
 
+      //DATA FETCHED
       const pageData = await pageRes.json();
 
+      //NORMALIZE DATA
       const normalized =
         (pageData.orderedItems || []).map(normalizeActivity);
 
-      setPosts(normalized);
+      //SET AND RENDER
+      setItems(normalized);
     } catch (err) {
       console.error(err);
     }
@@ -83,7 +107,7 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      loadPosts();
+      loadOutboxStream();
     }
   }, [isLoading, user]);
 
@@ -124,7 +148,7 @@ export default function Home() {
             </div>
 
         <div className="flex flex-col gap-4">
-          {posts.map((item) => (
+          {items.map((item) => (
             <div
               key={item.id}
               className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white"

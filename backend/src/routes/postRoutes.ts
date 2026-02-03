@@ -40,6 +40,11 @@ export function postRoutes(
     ctrl.getThread
   );
 
+  router.get(
+    "/post/:id",
+    ctrl.getPost
+  );
+
   /**
    * Posts
    */
@@ -51,15 +56,7 @@ export function postRoutes(
     ctrl.createPost
   );
 
-  /**
-   * Outbox (local convenience endpoint)
-   */
 
-  router.get(
-    "/outbox",
-    requireAuth(auth, users),
-    ctrl.getMyOutbox
-  );
 
   return router;
 }

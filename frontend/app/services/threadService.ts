@@ -41,6 +41,36 @@ async function apiFetch<T>(
   return res.json();
 }
 
+export function iriFromValue(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return iriFromValue(value[0]);
+  if (typeof value === "object" && typeof value.id === "string") {
+    return value.id;
+  }
+  return null;
+}
+
+
+export async function getActor(id: string){
+  try{
+    const res = await fetch(id, {
+      headers: {
+        Accept: "application/activity+json",
+      }
+    });
+
+    if(!res.ok){
+      const text = await res.text();
+      throw new Error(text || "Get Actor requst failed");
+    }
+    return res.json();
+  }catch{
+    return null;
+  }
+
+}
+
 /**
  * THREADS
  */
@@ -62,6 +92,7 @@ export async function getThreadPosts(threadId: string): Promise<Post[]> {
     if (typeof iri !== "string") return null;
 
     try {
+      console.log(iri);
       const res = await fetch(iri, {
         headers: {
           Accept: "application/activity+json",
