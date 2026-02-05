@@ -60,6 +60,46 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
 
   apex.store.db = db;
   await apex.store.setup();
+  // Keep original method with correct `this`
+  const originalSaveObject = apex.store.saveObject.bind(apex.store);
+
+  // Monkey-patch saveObject
+  apex.store.saveObject = async function (object: any, actor?: any, isLocal?: boolean) {
+    const result = await originalSaveObject(object, actor, isLocal);
+
+    await enrichStoredObject(object, actor);
+
+    return result;
+  };
+
+  async function enrichStoredObject(object: any, actor?: any) {
+    if (!object || object.type !== "Note") return;
+    console.log("YEAHHH WE're ENCRICHING THE DATA! honestly almost surprised this is running at all");
+
+    const inReplyTo =
+      Array.isArray(object.inReplyTo)
+        ? object.inReplyTo[0]
+        : object.inReplyTo;
+
+    // Root post
+    if (!inReplyTo) {
+      object._local = {
+        threadRoot: object.id,
+        depth: 0,
+      };
+      return;
+    }
+
+    // Reply: inherit from parent
+    const parent = await apex.store.getObject(inReplyTo);
+    if (!parent) return;
+
+    object._local = {
+      threadRoot: parent._local?.threadRoot ?? parent.id,
+      depth: (parent._local?.depth ?? 0) + 1,
+    };
+  }
+
 
   app.use(
     express.json({ type: apex.consts.jsonldTypes }),
@@ -168,46 +208,46 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
     }
   );
   /** Apply local Add activities to thread collections */
-app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
+// app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
 
-  if (activity.type !== "Create") return;
+//   if (activity.type !== "Create") return;
 
-  const inner = activity.object?.[0];
-  if (!inner || inner.type?.toLowerCase() !== "add") return;
+//   const inner = activity.object?.[0];
+//   if (!inner || inner.type?.toLowerCase() !== "add") return;
 
-  const target =
-    inner.target?.[0] ??
-    inner.target;
+//   const target =
+//     inner.target?.[0] ??
+//     inner.target;
 
-  const object =
-    inner.object?.[0] ??
-    inner.object;
+//   const object =
+//     inner.object?.[0] ??
+//     inner.object;
 
-  if (
-    typeof target !== "string" ||
-    !target.startsWith(`https://${DOMAIN}/t/`)
-  ) {
-    return;
-  }
+//   if (
+//     typeof target !== "string" ||
+//     !target.startsWith(`https://${DOMAIN}/t/`)
+//   ) {
+//     return;
+//   }
 
-  const noteIri =
-    typeof object === "string"
-      ? object
-      : object.id;
+//   const noteIri =
+//     typeof object === "string"
+//       ? object
+//       : object.id;
 
-  if (!noteIri) return;
+//   if (!noteIri) return;
 
-  const thread = await apex.store.getObject(target);
-  if (!thread || thread.type !== "OrderedCollection") return;
+//   const thread = await apex.store.getObject(target);
+//   if (!thread || thread.type !== "OrderedCollection") return;
 
-  thread.orderedItems = thread.orderedItems || [];
+//   thread.orderedItems = thread.orderedItems || [];
 
-  if (!thread.orderedItems.includes(noteIri)) {
-    thread.orderedItems.unshift(noteIri);
-    thread.totalItems = (thread.totalItems || 0) + 1;
-    await apex.store.updateObject(thread, inner.attributedTo, true);
-  }
-});
+//   if (!thread.orderedItems.includes(noteIri)) {
+//     thread.orderedItems.unshift(noteIri);
+//     thread.totalItems = (thread.totalItems || 0) + 1;
+//     await apex.store.updateObject(thread, inner.attributedTo, true);
+//   }
+// });
 
 
   /** Auto accept follows & auto announce */
@@ -220,28 +260,6 @@ app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
           cc: actor.id,
         });
         apex.addToOutbox(recipient, share);
-        break;
-      }
-      case "add": {
-        const target = activity.target?.[0] || activity.target;
-        const object = activity.object?.[0] || activity.object;
-
-        if (!target || !object) return;
-
-        // Only allow local thread collections
-        if (!target.startsWith(`https://${DOMAIN}/t/`)) return;
-
-        const thread = await apex.store.getObject(target);
-        if (!thread || thread.type !== "OrderedCollection") return;
-
-        thread.orderedItems = thread.orderedItems || [];
-
-        if (!thread.orderedItems.includes(object.id ?? object)) {
-          thread.orderedItems.unshift(object.id ?? object);
-          thread.totalItems = (thread.totalItems || 0) + 1;
-          await apex.store.saveObject(thread);
-        }
-
         break;
       }
 
@@ -287,60 +305,6 @@ app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
   app.get(routes.activity, apex.net.activityStream.get);
   app.get(routes.shares, apex.net.shares.get);
   app.get(routes.likes, apex.net.likes.get);
-app.get("/t/:id", async (req, res) => {
-  const { id } = req.params;
-  const page = req.query.page;
-
-  const threadIri = `https://${DOMAIN}/t/${id}`;
-
-  // Fetch thread object
-  const thread = await apex.store.getObject(threadIri);
-  if (!thread) {
-    return res.status(404).json({ error: "Thread not found" });
-  }
-
-  // Paging requested → OrderedCollectionPage
-  if (page) {
-    const pageNum = Number(page) || 1;
-    const PAGE_SIZE = 20;
-
-    const ids = thread.orderedItems || [];
-
-    const pageItems = ids.slice(
-      (pageNum - 1) * PAGE_SIZE,
-      pageNum * PAGE_SIZE
-    );
-
-    const notes = await db
-      .collection("objects")
-      .find({ id: { $in: pageItems } })
-      .toArray();
-
-    return res.json({
-      "@context": "https://www.w3.org/ns/activitystreams",
-      id: `${threadIri}?page=${pageNum}`,
-      type: "OrderedCollectionPage",
-      partOf: threadIri,
-      orderedItems: notes.map((n:any) => n.id),
-      next: notes.length === PAGE_SIZE
-        ? `${threadIri}?page=${pageNum + 1}`
-        : undefined,
-    });
-  }
-
-  // No paging → OrderedCollection metadata
-  return res.json({
-    "@context": "https://www.w3.org/ns/activitystreams",
-    id: threadIri,
-    type: "OrderedCollection",
-    name: thread.name,
-    totalItems: await db.collection("objects").countDocuments({
-      type: "Note",
-      context: threadIri,
-    }),
-    first: `${threadIri}?page=1`,
-  });
-});
 
   app.get(
     "/.well-known/webfinger",

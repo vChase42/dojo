@@ -23,6 +23,7 @@ import { publicRoutes } from "./routes/publicRoutes";
 import { setupActivityPub } from "./server/activitypub";
 import type { APEnv } from "./server/activitypub";
 import { NoteStatsService } from "./services/NoteStatsService";
+import { ThreadStatsService } from "./services/ThreadStatsService";
 
 
 async function main() {
@@ -82,7 +83,20 @@ async function main() {
       downs INTEGER NOT NULL DEFAULT 0
     );
   `);
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS groups (
+      id SERIAL PRIMARY KEY,
 
+      group_iri TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT,
+
+      is_public BOOLEAN NOT NULL DEFAULT TRUE,
+      is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `)
   
   // ----------------------------
   // 📌 Setup Express app
@@ -108,6 +122,7 @@ async function main() {
   const authService = new AuthService(db);
   const activityPubService = new ActivityPubService(apex, db);
   const noteStatsService = new NoteStatsService(pgPool);
+  const threadStatsService = new ThreadStatsService(pgPool);
   const userService = new UserService(db);
   
   
@@ -115,7 +130,7 @@ async function main() {
   // 📌 Mount Routes
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService));
+  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService, threadStatsService));
   app.use("/api", publicRoutes(db, apex));
 
   // ----------------------------

@@ -7,15 +7,17 @@ import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
 import { ActivityPubService } from "../services/activitypubService";
 import { NoteStatsService } from "../services/NoteStatsService";
+import { ThreadStatsService } from "../services/ThreadStatsService";
 
 export function postRoutes(
   auth: AuthService,
   users: UserService,
   ap: ActivityPubService,
-  ns: NoteStatsService
+  ns: NoteStatsService,
+  ts: ThreadStatsService,
 ) {
   const router = Router();
-  const ctrl = postController(ap, ns);
+  const ctrl = postController(ap, ns, ts);
 
   /**
    * Threads

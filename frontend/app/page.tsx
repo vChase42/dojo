@@ -1,9 +1,9 @@
 /*
 translate this file into outbox style messaging.
-then, what. i need to fix the getcollection logic in the backend to be essentially passthrough. should be fine.
-refactor getcollection logic.
+// then, what. i need to fix the getcollection logic in the backend to be essentially passthrough. should be fine.
+// refactor getcollection logic.
+^not doing above anymore, turning the thread collections into simple notes.
 clean up frontend functions as per previous step. 
-
 */
 
 "use client";

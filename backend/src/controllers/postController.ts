@@ -3,8 +3,9 @@
 import { Request, Response } from "express";
 import { ActivityPubService } from "../services/activitypubService";
 import { NoteStatsService } from "../services/NoteStatsService";
+import { ThreadStats, ThreadStatsService } from "../services/ThreadStatsService";
 
-export function postController(ap: ActivityPubService, ns: NoteStatsService) {
+export function postController(ap: ActivityPubService, ns: NoteStatsService, ts: ThreadStatsService) {
   return {
 
     /**
@@ -14,20 +15,17 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
     async createThread(req: Request, res: Response) {
       try {
         const user = req.user;
-        const { title, slug } = req.body;
+        const { title, groupContext } = req.body;
 
         if (!title || typeof title !== "string") {
           return res.status(400).json({ error: "title is required" });
         }
 
-        const { threadId } = await ap.createThread(user.actorId, {
-          title,
-          slug,
-        });
+        const { noteId, activityId } = await ap.createNote(user.actorId, title, groupContext, {to: [groupContext]});
 
         return res.status(201).json({
           ok: true,
-          threadId,
+          noteId,
         });
 
       } catch (err: any) {
@@ -55,7 +53,7 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
           return res.status(400).json({ error: "content is required" });
         }
 
-        const result = await ap.createPost(
+        const result = await ap.createNote(
           user.actorId,
           content,
           context,
@@ -96,7 +94,8 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService) {
      */
     async getThreads(req: Request, res: Response) {
       try {
-        const threads = await ap.getThreads();
+        const {groupIRI} = req.body;
+        const threads: ThreadStats[] = await ts.listByGroup(groupIRI);
         res.json({ ok: true, items: threads });
       } catch (err: any) {
         console.error("getThreads error:", err);

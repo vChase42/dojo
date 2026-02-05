@@ -36,51 +36,104 @@ export class ActivityPubService {
     return actor.id;
   }
 
-  async createThread(
-    createdBy: string,
-    options: {
-      title: string;
-      slug?: string;        // optional human-readable id
-      published?: string;   // for ingestion / backfill
+//--------------------------- replace the below with createCollection method maybe.
+  // async createThread(
+  //   createdBy: string,
+  //   options: {
+  //     title: string;
+  //     slug?: string;        // optional human-readable id
+  //     published?: string;   // for ingestion / backfill
+  //   }
+  // ): Promise<{ threadId: string }> {
+  //   const { title, slug, published } = options;
+
+  //   if (!title || typeof title !== "string") {
+  //     throw new Error("Thread title is required");
+  //   }
+
+  //   // Generate a stable thread ID
+  //   const idPart = slug ?? crypto.randomUUID();
+  //   const threadId = `https://${this.apex.domain}/t/${idPart}`;
+
+  //   // Safety: never overwrite an existing thread
+  //   const existing = await this.apex.store.getObject(threadId);
+  //   if (existing) {
+  //     throw new Error("Thread already exists");
+  //   }
+
+  //   const thread = {
+  //     "@context": "https://www.w3.org/ns/activitystreams",
+  //     id: threadId,
+  //     type: "OrderedCollection",
+  //     name: title,
+  //     attributedTo: createdBy,
+  //     slug: idPart,
+  //     orderedItems: [],
+  //     totalItems: 0,
+  //     first: `${threadId}?page=1`,
+  //     published: published ?? new Date().toISOString(),
+  //   };
+
+  //   await this.apex.store.saveObject(thread);
+
+  //   return { threadId };
+  // }
+
+  async createGroup(
+    groupName: string,
+    options?: {
+      summary?: string;
+      iconUrl?: string;
+      discoverable?: boolean;
     }
-  ): Promise<{ threadId: string }> {
-    const { title, slug, published } = options;
+  ): Promise<{ groupId: string }> {
+    const {
+      summary = `Group about ${groupName}`,
+      iconUrl,
+      discoverable = true,
+    } = options ?? {};
 
-    if (!title || typeof title !== "string") {
-      throw new Error("Thread title is required");
-    }
+    const groupId = this.apex.utils.usernameToIRI(groupName);
 
-    // Generate a stable thread ID
-    const idPart = slug ?? crypto.randomUUID();
-    const threadId = `https://${this.apex.domain}/t/${idPart}`;
-
-    // Safety: never overwrite an existing thread
-    const existing = await this.apex.store.getObject(threadId);
+    // Prevent accidental overwrite
+    const existing = await this.apex.store.getObject(groupId);
     if (existing) {
-      throw new Error("Thread already exists");
+      throw new Error(`Group already exists: ${groupName}`);
     }
 
-    const thread = {
+    const group: any = {
       "@context": "https://www.w3.org/ns/activitystreams",
-      id: threadId,
-      type: "OrderedCollection",
-      name: title,
-      attributedTo: createdBy,
-      slug: idPart,
-      orderedItems: [],
-      totalItems: 0,
-      first: `${threadId}?page=1`,
-      published: published ?? new Date().toISOString(),
+      id: groupId,
+      type: "Group",
+      preferredUsername: groupName,
+      name: groupName,
+      summary,
+      inbox: `${groupId}/inbox`,
+      outbox: `${groupId}/outbox`,
+      followers: `${groupId}/followers`,
+      to: ["https://www.w3.org/ns/activitystreams#Public"],
     };
 
-    await this.apex.store.saveObject(thread);
+    if (iconUrl) {
+      group.icon = {
+        type: "Image",
+        mediaType: "image/png",
+        url: iconUrl,
+      };
+    }
 
-    return { threadId };
+    // Optional local-only metadata (safe on actors)
+    if (discoverable) {
+      group._meta = { discoverable: true };
+    }
+
+    await this.apex.store.saveObject(group, null, true);
+
+    return { groupId };
   }
 
 
-
-  async createPost(actorId: string,content: string, context: string, options: { inReplyTo?: string;  to?: string[];  cc?: string[];  published?: string;}
+  async createNote(actorId: string,content: string, context: string, options: { inReplyTo?: string;  to?: string[];  cc?: string[];  published?: string;}
   ): Promise<{ noteId: string; activityId?: string }> {
     const { inReplyTo,  to,  cc,  published,} = options;
 
@@ -137,8 +190,8 @@ export class ActivityPubService {
     return {
       noteId: noteId ?? "",
       activityId,
- };
-}
+   };
+  }
 
   async getCollection(idOrIri: string) {
     const iri = idOrIri.startsWith("http")
@@ -150,14 +203,29 @@ export class ActivityPubService {
 
 
   //replace the ordered collections with notes. simplify it. and then, this thing below will have to query by... tags? what? still confused a little.
-  async getThreads(limit = 50) {
-    return this.mdb
-      .collection("objects")
-      .find({ type: "OrderedCollection" })
-      .sort({ published: -1 })
-      .limit(limit)
-      .toArray();
-  }
+  //okay, so this will be replaced with getPostsFromId. it interacts exclusivelya with mongo, not ap. 
+  //we will begin adding way more metadata to posts when they are created. and the users will never see em!
+  //this metadata will include _local: {} now.
+
+  //db.objects.find({
+  // "_local.isThreadRoot": true
+  // }).sort({ published: -1 })
+  //so, u'll be using that code. ^thats shell code, but convert it to ts.
+  //and thats how getPostsFromId will work^. 
+
+  //   "_local": {
+  //   "threadRoot": "https://dojo.example/o/root",
+  //   "threadId": "t:123",
+  //   "depth": 2
+  // }
+  // async getThreads(limit = 50) {
+  //   return this.mdb
+  //     .collection("objects")
+  //     .find({ type: "OrderedCollection" })
+  //     .sort({ published: -1 })
+  //     .limit(limit)
+  //     .toArray();
+  // }
 
 async addNoteToOrderedCollection(
   actorId: string,
@@ -200,7 +268,7 @@ async addNoteToOrderedCollection(
 
   async getWall(user: UserRecord, page?: number) {
     const actor = await this.apex.store.getObject(user.actorId);
-    const outbox = await this.apex.getOutbox(actor, 0, true);
+    // const outbox = await this.apex.getOutbox(actor, 0, true);
 
     //filter the above out and return it later! Then postcontroller will spice the the with reply and like stats.
     return this.apex.getOutbox(actor, page, true);
