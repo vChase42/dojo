@@ -5,8 +5,36 @@ import { ActivityPubService } from "../services/activitypubService";
 import { NoteStatsService } from "../services/NoteStatsService";
 import { ThreadStats, ThreadStatsService } from "../services/ThreadStatsService";
 
-export function postController(ap: ActivityPubService, ns: NoteStatsService, ts: ThreadStatsService) {
+export function postController(ap: ActivityPubService, ns: NoteStatsService, ts: ThreadStatsService, mdb: any) {
   return {
+
+    /**
+     * POST /api/group
+     * Create a new group
+    */
+    async createGroup(req: Request, res: Response){
+      try{
+        const {groupName, summary} = req.body;
+
+        if (!groupName || typeof groupName !== "string") {
+          return res.status(400).json({ error: "groupName is required" });
+        }
+        if(summary && typeof summary !== "string"){
+          return res.status(400).json({ error: "summary must be a string"});
+        }
+        
+        const groupId = await ap.createGroup(groupName, {summary: summary, discoverable: true});
+      
+        return res.status(201).json({
+          ok: true,
+          groupId,
+        });
+
+      }catch(err: any){
+        console.error("createGroup error:", err);
+        res.status(500).json({ error: err.message || "Failed to create group" });
+      }
+    },
 
     /**
      * POST /api/thread
@@ -15,13 +43,19 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
     async createThread(req: Request, res: Response) {
       try {
         const user = req.user;
-        const { title, groupContext } = req.body;
+        const { title, groupContext: groupIri } = req.body;
 
         if (!title || typeof title !== "string") {
           return res.status(400).json({ error: "title is required" });
         }
 
-        const { noteId, activityId } = await ap.createNote(user.actorId, title, groupContext, {to: [groupContext]});
+        const { noteId, activityId } = await ap.createNote(user.actorId, title, groupIri, {to: [groupIri]});
+        await ts.createThread({
+          groupIri,
+          rootNoteIri: noteId,
+          title,
+          creatorIri: user.actorId
+        });
 
         return res.status(201).json({
           ok: true,
@@ -65,15 +99,14 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
           }
         );
 
-        //adding it to the collection is also a locally managed side effect.
-        if (context) {
-          await ap.addNoteToOrderedCollection(user.actorId, context, result.noteId);
-        }
-
 
         // Stats updates are local side effects
         if (inReplyTo) {
           await ns.incrementReplies(inReplyTo);
+          const root = await ap.resolveThreadRoot(inReplyTo);
+          if(root){
+            await ts.incrementReplies(root)
+          }
         }
 
 
@@ -94,7 +127,10 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
      */
     async getThreads(req: Request, res: Response) {
       try {
-        const {groupIRI} = req.body;
+        const {groupIRI} = req.query;
+        if(!groupIRI || typeof groupIRI !== "string"){
+          return res.status(400).json({ error: "groupIRI is required and must be string"});
+        }
         const threads: ThreadStats[] = await ts.listByGroup(groupIRI);
         res.json({ ok: true, items: threads });
       } catch (err: any) {
@@ -103,35 +139,43 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
       }
     },
 
+
     /**
      * GET /api/thread/:id
-     * Fetch a single thread object
+     * Fetch all notes belonging to a thread
      */
     async getThread(req: Request, res: Response) {
       try {
-        const { id } = req.params;
-        const thread = await ap.getCollection(id);
-        
-        if (!thread) {
-          return res.status(404).json({ error: "Thread not found" });
-        }
-        
-        res.json({ thread });
-        
-      } catch (err: any) {
+        const { id: threadId } = req.params;
+
+        const notes = await mdb
+          .collection("objects")
+          .find({
+            type: "Note",
+            "_local.threadRoot": threadId,
+          })
+          .sort({ published: 1 })
+          .toArray();
+
+        return res.json({
+          threadId,
+          notes,
+        });
+      } catch (err) {
         console.error("getThread error:", err);
-        res.status(500).json({ error: "Failed to fetch thread" });
+        return res.status(500).json({ error: "failed_to_fetch_thread" });
       }
     },
 
+
     /**
-     * GET /api/outbox
+     * GET /api/post/:id
      * Return the logged-in user's posts (local only)
      */
     async getPost(req: Request, res: Response) {
       try {
         const {id} = req.params;
-        const post = ap.getPost(id);
+        const post = await ap.getPost(id);
         
         res.json({
           post,
@@ -148,7 +192,8 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
       try {
         const user = req.user;
         // const { page } = req.params;
-        ap.getWall(user);
+        // ap.getWall(user);
+        return res.json({ ok: true, items: [] });
 
         //stub
       } catch (err: any){

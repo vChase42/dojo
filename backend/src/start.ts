@@ -130,7 +130,7 @@ async function main() {
   // 📌 Mount Routes
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService, threadStatsService));
+  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService, threadStatsService,db));
   app.use("/api", publicRoutes(db, apex));
 
   // ----------------------------

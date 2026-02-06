@@ -278,4 +278,12 @@ async addNoteToOrderedCollection(
     return await this.apex.store.getObject(actorId);
   }
 
+  async resolveThreadRoot(inReplyTo: string){
+    // Reply: inherit from parent
+    const parent = await this.apex.store.getObject(inReplyTo);
+    if (!parent) return;
+    return parent._local?.threadRoot ?? parent.id;
+
+  }
+
 }

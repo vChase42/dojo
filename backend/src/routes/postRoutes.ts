@@ -15,9 +15,10 @@ export function postRoutes(
   ap: ActivityPubService,
   ns: NoteStatsService,
   ts: ThreadStatsService,
+  mdb: any,
 ) {
   const router = Router();
-  const ctrl = postController(ap, ns, ts);
+  const ctrl = postController(ap, ns, ts, mdb);
 
   /**
    * Threads
