@@ -84,27 +84,29 @@ async function main() {
     );
   `);
   await pgPool.query(`
-    CREATE TABLE IF NOT EXISTS groups (
+    CREATE TABLE IF NOT EXISTS threads (
       id SERIAL PRIMARY KEY,
 
-      group_iri TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      description TEXT,
+      group_iri TEXT NOT NULL,
+      root_note_iri TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      creator_iri TEXT NOT NULL,
 
-      is_public BOOLEAN NOT NULL DEFAULT TRUE,
+      reply_count INTEGER NOT NULL DEFAULT 0,
+      last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+      is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+      is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
       is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
 
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-  `)
+  `);
   
   // ----------------------------
   // 📌 Setup Express app
   // ----------------------------
   const app = express();
-
-
-  
   
   app.use(cookieParser());
   app.use(express.json());

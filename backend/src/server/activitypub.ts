@@ -65,17 +65,14 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
 
   // Monkey-patch saveObject
   apex.store.saveObject = async function (object: any, actor?: any, isLocal?: boolean) {
-    const result = await originalSaveObject(object, actor, isLocal);
-
     await enrichStoredObject(object, actor);
-
+    const result = await originalSaveObject(object, actor, isLocal);
     return result;
   };
 
   async function enrichStoredObject(object: any, actor?: any) {
     if (!object || object.type !== "Note") return;
-    console.log("YEAHHH WE're ENCRICHING THE DATA! honestly almost surprised this is running at all");
-
+    
     const inReplyTo =
       Array.isArray(object.inReplyTo)
         ? object.inReplyTo[0]

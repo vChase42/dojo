@@ -45,6 +45,9 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
         const user = req.user;
         const { title, groupContext: groupIri } = req.body;
 
+        if (!groupIri || typeof groupIri !== "string") {
+         return res.status(400).json({ error: "groupContext is required" });
+        }
         if (!title || typeof title !== "string") {
           return res.status(400).json({ error: "title is required" });
         }
@@ -140,6 +143,23 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
     },
 
 
+    async getThreadStats(req: Request, res: Response){
+      try{
+        const {threadIri} = req.query;
+        if(!threadIri || typeof threadIri !== "string"){
+          return res.status(400).json({ error: "threadIri is required and must be string"});
+        }
+        const thread: ThreadStats | null = await ts.getByRootNote(threadIri);
+        if(!thread){
+          return res.status(400).json({error: `no thread with threadIri ${threadIri} found`})
+        }
+        res.json({thread});
+      }catch (err: any){
+        console.error("getThreadStats error:",err);
+        res.status(500).json({error:"Failed to fetch thread stats"});
+      }
+    },
+
     /**
      * GET /api/thread/:id
      * Fetch all notes belonging to a thread
@@ -156,9 +176,10 @@ export function postController(ap: ActivityPubService, ns: NoteStatsService, ts:
           })
           .sort({ published: 1 })
           .toArray();
-
+        
+        const threadStats = await ts.getByRootNote(threadId);
         return res.json({
-          threadId,
+          threadStats,
           notes,
         });
       } catch (err) {

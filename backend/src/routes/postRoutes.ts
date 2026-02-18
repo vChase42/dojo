@@ -37,6 +37,10 @@ export function postRoutes(
     ctrl.getThreads
   );
 
+  router.get(
+    "/threadstats",
+    ctrl.getThreadStats
+  )
   // Get a single thread by id
   router.get(
     "/thread/:id",
@@ -58,6 +62,11 @@ export function postRoutes(
     requireAuth(auth, users),
     ctrl.createPost
   );
+  router.post(
+    "/group",
+    requireAuth(auth, users),
+    ctrl.createGroup
+  )
 
 
 

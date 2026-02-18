@@ -3,17 +3,27 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getThreads, createThread, Thread } from "../services/threadService";
+import {
+  getThreadsByGroup,
+  createThread,
+  ThreadStats,
+  idFromIri,
+} from "../services/threadService";
 
 export default function ThreadsPage() {
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threads, setThreads] = useState<ThreadStats[]>([]);
   const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // start true
+  const groupIri = "https://localhost/u/default";
 
   async function loadThreads() {
-    const items = await getThreads();
-    setThreads(items);
+    setLoading(true);
+    try {
+      const items = await getThreadsByGroup(groupIri);
+      setThreads(items);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -26,13 +36,11 @@ export default function ThreadsPage() {
 
     try {
       setLoading(true);
-      await createThread(title, slug || undefined);
+      await createThread({ title, groupContext: groupIri });
       setTitle("");
-      setSlug("");
       await loadThreads();
     } catch (err) {
       console.error("Failed to create thread", err);
-    } finally {
       setLoading(false);
     }
   }
@@ -48,7 +56,7 @@ export default function ThreadsPage() {
           display: "flex",
           gap: "0.5rem",
           marginBottom: "1.5rem",
-          background:'#BBBBBB',
+          background: "#BBBBBB",
         }}
       >
         <input
@@ -56,14 +64,7 @@ export default function ThreadsPage() {
           placeholder="Thread title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={{ flex: 3, padding: "0.4rem" }}
-        />
-        <input
-          type="text"
-          placeholder="slug (optional)"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          style={{ flex: 2, padding: "0.4rem" }}
+          style={{ flex: 1, padding: "0.4rem" }}
         />
         <button
           type="submit"
@@ -74,45 +75,81 @@ export default function ThreadsPage() {
         </button>
       </form>
 
-      {threads.length === 0 ? (
-        <p>No threads yet.</p>
-      ) : (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontFamily: "monospace",
-          }}
-        >
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", paddingBottom: 8 }}>Topic</th>
-              <th style={{ textAlign: "left", paddingBottom: 8 }}>Author</th>
-              <th style={{ textAlign: "right", paddingBottom: 8 }}>Replies</th>
-            </tr>
-          </thead>
-          <tbody>
-            {threads.map((thread) => (
-              <tr key={thread.id}>
-                <td style={{ padding: "6px 0" }}>
-                  <Link
-                    href={`/threads/${thread.slug}`}
-                    style={{ textDecoration: "none" }}
-                  >
-                    {thread.name}
-                  </Link>
-                </td>
-                <td style={{ padding: "6px 0", color: "#666" }}>
-                  {thread.attributedTo ?? "unknown"}
-                </td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>
-                  {thread.totalItems ?? 0}
-                </td>
+      {/* Table Wrapper */}
+      <div style={{ position: "relative", minHeight: 120 }}>
+        {!loading && threads.length === 0 && (
+          <p>No threads yet.</p>
+        )}
+
+        {threads.length > 0 && (
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontFamily: "monospace",
+            }}
+          >
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", paddingBottom: 8 }}>
+                  Topic
+                </th>
+                <th style={{ textAlign: "left", paddingBottom: 8 }}>
+                  Author
+                </th>
+                <th style={{ textAlign: "right", paddingBottom: 8 }}>
+                  Replies
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {threads.map((thread) => (
+                <tr key={thread.rootNoteIri}>
+                  <td style={{ padding: "6px 0" }}>
+                    <Link
+                      href={`/threads/${idFromIri(
+                        thread.rootNoteIri
+                      )}`}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {thread.title}
+                    </Link>
+                  </td>
+                  <td style={{ padding: "6px 0", color: "#666" }}>
+                    {thread.creatorIri ?? "unknown"}
+                  </td>
+                  <td
+                    style={{
+                      padding: "6px 0",
+                      textAlign: "right",
+                    }}
+                  >
+                    {thread.replyCount ?? 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Loading Overlay */}
+        {loading && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(200, 200, 200, 0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 500,
+              fontSize: "1rem",
+            }}
+          >
+            Loading...
+          </div>
+        )}
+      </div>
     </main>
   );
 }

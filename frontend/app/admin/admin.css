@@ -1,0 +1,140 @@
+/* =========================
+   ADMIN LAYOUT
+   ========================= */
+
+.admin-page {
+  margin-left: 10%;
+  margin-right: 10%;
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+}
+
+.admin-header {
+  margin-bottom: 2rem;
+}
+
+.admin-header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ededed;
+}
+
+.admin-header p {
+  color: #9aa4b2;
+  font-size: 0.9rem;
+}
+
+/* =========================
+   CARD
+   ========================= */
+
+.admin-card {
+  background: #111827;              /* distinct from page background */
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 24px;
+  max-width: 720px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.admin-card h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #e5e7eb;
+}
+
+/* =========================
+   FORM
+   ========================= */
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-row label {
+  width: 140px;
+  font-size: 13px;
+  color: #9aa4b2;
+}
+
+.form-row input {
+  flex: 1;
+  background: #0f172a;
+  color: #f3f4f6;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.form-row input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  background: #1e293b;
+}
+
+/* =========================
+   ACTIONS
+   ========================= */
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.form-actions button {
+  min-width: 140px;
+  background: transparent;
+  border: 1px solid #1f2937;
+  color: #9aa4b2;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.form-actions button:hover {
+  color: #f3f4f6;
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.form-actions button:active {
+  transform: translateY(1px);
+}
+
+/* =========================
+   STATUS
+   ========================= */
+
+.form-error {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #f87171;
+}
+
+.form-success {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #7dd3fc;
+}

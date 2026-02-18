@@ -3,20 +3,10 @@
 A federated social platform prototype built with:
 - **Frontend:** React (Next.js / Vite)
 - **Backend:** Express + ActivityPub-Express
-- **Database:** MongoDB
+- **Database:** PostgreSQL (Private) + MongoDB (Federated)
 
-## Quick Start
+## Quick Start - Dev Only
+
 ```bash
-
-
-#frontend
-cd frontend
-npm run dev
-
-
-#backend
-cd backend
-npm run dev
-
-#mongo database:
-sudo docker compose up
+./tmux-start.sh
+```
