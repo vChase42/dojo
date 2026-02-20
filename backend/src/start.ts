@@ -20,10 +20,11 @@ import { postRoutes } from "./routes/postRoutes";
 import { publicRoutes } from "./routes/publicRoutes";
 
 // AP SERVER
-import { setupActivityPub } from "./server/activitypub";
-import type { APEnv } from "./server/activitypub";
+import { setupActivityPub } from "./activitypub/activitypub";
+import type { APEnv } from "./activitypub/activitypub";
 import { NoteStatsService } from "./services/NoteStatsService";
 import { ThreadStatsService } from "./services/ThreadStatsService";
+import { MongoService } from "./services/mongoService";
 
 
 async function main() {
@@ -52,7 +53,7 @@ async function main() {
   // 📌 Connect MongoDB
   // ----------------------------
 
-  const { client, db } = await connectWithRetry({
+  const { client, db: mdb } = await connectWithRetry({
     url: DB_URL,
     dbName: DB_NAME,
     retries: 3,
@@ -116,24 +117,25 @@ async function main() {
   // ----------------------------
   console.log("📡 Initializing ActivityPub…");
   
-  const apex = await setupActivityPub(app, process.env as unknown as APEnv, db);
+  const apex = await setupActivityPub(app, process.env as unknown as APEnv, mdb);
   
   // ----------------------------
   // 📌 Instantiate Services
   // ----------------------------
-  const authService = new AuthService(db);
-  const activityPubService = new ActivityPubService(apex, db);
+  const authService = new AuthService(mdb);
+  const mongoService = new MongoService(mdb);
+  const activityPubService = new ActivityPubService(apex, mdb);
   const noteStatsService = new NoteStatsService(pgPool);
   const threadStatsService = new ThreadStatsService(pgPool);
-  const userService = new UserService(db);
+  const userService = new UserService(mdb);    //update this to utilize pg pls. 
   
   
   // ----------------------------
   // 📌 Mount Routes
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService, threadStatsService,db));
-  app.use("/api", publicRoutes(db, apex));
+  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService, threadStatsService,mongoService));
+  app.use("/api", publicRoutes(activityPubService,mongoService,threadStatsService));
 
   // ----------------------------
   // 📌 Static files (optional)

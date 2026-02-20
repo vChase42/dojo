@@ -2,12 +2,16 @@
 
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
-import { postController } from "../controllers/postController";
 import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
 import { ActivityPubService } from "../services/activitypubService";
 import { NoteStatsService } from "../services/NoteStatsService";
 import { ThreadStatsService } from "../services/ThreadStatsService";
+import { ReplyController } from "../controllers/replyController";
+import { ThreadController } from "../controllers/threadController";
+import { GroupController } from "../controllers/groupController";
+import { MongoService } from "../services/mongoService";
+import { group } from "node:console";
 
 export function postRoutes(
   auth: AuthService,
@@ -15,11 +19,12 @@ export function postRoutes(
   ap: ActivityPubService,
   ns: NoteStatsService,
   ts: ThreadStatsService,
-  mdb: any,
+  ms: MongoService,
 ) {
   const router = Router();
-  const ctrl = postController(ap, ns, ts, mdb);
-
+  const replyController = ReplyController(ap,ns,ts);
+  const threadController = ThreadController(ap,ts,ms);
+  const groupController = GroupController(ap);
   /**
    * Threads
    */
@@ -28,29 +33,9 @@ export function postRoutes(
   router.post(
     "/thread",
     requireAuth(auth, users),
-    ctrl.createThread
+    threadController.createThread
   );
 
-  // List all threads (local, forum index)
-  router.get(
-    "/threads",
-    ctrl.getThreads
-  );
-
-  router.get(
-    "/threadstats",
-    ctrl.getThreadStats
-  )
-  // Get a single thread by id
-  router.get(
-    "/thread/:id",
-    ctrl.getThread
-  );
-
-  router.get(
-    "/post/:id",
-    ctrl.getPost
-  );
 
   /**
    * Posts
@@ -60,12 +45,15 @@ export function postRoutes(
   router.post(
     "/post",
     requireAuth(auth, users),
-    ctrl.createPost
+    replyController.createPost
   );
+
+
+  //create a new group (the context type that threads belong to)
   router.post(
     "/group",
     requireAuth(auth, users),
-    ctrl.createGroup
+    groupController.createGroup
   )
 
 

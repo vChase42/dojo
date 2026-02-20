@@ -1,68 +1,32 @@
 // src/routes/publicRoutes.ts
 
 import { Router } from "express";
+import { ThreadController } from "../controllers/threadController";
+import { MongoService } from "../services/mongoService";
+import { ActivityPubService } from "../services/activitypubService";
+import { ThreadStatsService } from "../services/ThreadStatsService";
 
-export function publicRoutes(db: any, apex: any) {
+export function publicRoutes(ap: ActivityPubService, ms: MongoService, ts: ThreadStatsService) {
   const router = Router();
+  const threadController = ThreadController(ap, ts, ms);
 
-  // List top groups by announce count
-  router.get("/groups", async (req, res) => {
-    try {
-      const groups = await db.collection("streams")
-        .aggregate([
-          { $sort: { _id: -1 } },
-          { $limit: 10000 },
-          { $match: { type: "Announce" } },
-          { $group: { _id: "$actor", postCount: { $sum: 1 } } },
-          {
-            $lookup: {
-              from: "objects",
-              localField: "_id",
-              foreignField: "id",
-              as: "actor",
-            },
-          },
-          {
-            $replaceRoot: {
-              newRoot: {
-                $mergeObjects: [{ $arrayElemAt: ["$actor", 0] }, "$$ROOT"],
-              },
-            },
-          },
-          { $project: { _id: 0, _meta: 0, actor: 0 } },
-        ])
-        .sort({ postCount: -1 })
-        .limit(Number.parseInt(req.query.n as string) || 50)
-        .toArray();
+  // List all threads (local, forum index)
+  router.get(
+    "/threads",
+    threadController.getThreads
+  );
 
-      res.json(
-        apex.toJSONLD({
-          id: `https://${process.env.DOMAIN}/groups`,
-          type: "OrderedCollection",
-          totalItems: groups.length,
-          orderedItems: groups,
-        })
-      );
-    } catch (err: any) {
-      console.error(err);
-      res.status(500).send("Server error");
-    }
-  });
+  // get stats for a thread.
+  router.get(
+    "/threadstats",
+    threadController.getThreadStats
+  )
 
-  // Stats endpoint
-  router.get("/stats", async (req, res) => {
-    try {
-      const queueSize = await db
-        .collection("deliveryQueue")
-        .countDocuments({ attempt: 0 });
-
-      const uptime = process.uptime();
-
-      res.json({ queueSize, uptime });
-    } catch (err) {
-      res.status(500).send("Server error");
-    }
-  });
+  // Get a thread stats and list of all the relevant notes.
+  router.get(
+    "/thread/:id",
+    threadController.getThreadConversation
+  );
 
   return router;
 }
