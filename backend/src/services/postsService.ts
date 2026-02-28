@@ -4,7 +4,7 @@ import { Pool } from "pg";
 import { Post, PostRevision } from "../types";
 
 export class PostsService {
-  constructor(private pg: Pool) {}
+  constructor(private pg: Pool) {this.initialize();}
 
   // ------------------------------------------------
   // Initialization

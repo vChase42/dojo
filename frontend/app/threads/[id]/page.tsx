@@ -5,65 +5,52 @@ import { useParams } from "next/navigation";
 import {
   getThread,
   createPost,
-  NoteObject,
-  ThreadStats,
 } from "../../services/threadService";
-import { postTreeBuilder } from "./scripts/postTreeBuilder";
-import type { PostTreeNode } from "./scripts/postTreeBuilder";
+import { buildPostTree } from "../../services/utils";
+import type { PostTreeNode } from "@/app/types";
 import { useMe } from "@/app/hooks/me";
+import { Post, Thread } from "@/app/types";
 
 type ReplyState = {
   [postId: string]: boolean;
 };
 
 export default function ThreadPage() {
-  const { data: user, isLoading } = useMe();
-  const { id } = useParams();
-  const shortId = id as string;
+  const { data: user } = useMe();
+  const params = useParams();
 
-  const [notes, setNotes] = useState<NoteObject[]>([]);
-  const [threadStats, setThreadStats] = useState<ThreadStats | null>(null);
+  const shortId =
+    typeof params.id === "string"
+      ? params.id
+      : Array.isArray(params.id)
+      ? params.id[0]
+      : null;
+    console.log(shortId);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [thread, setThread] = useState<Thread | null>(null);
   const [replyOpen, setReplyOpen] = useState<ReplyState>({});
   const [rootText, setRootText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Scroll persistence
   useEffect(() => {
-    const saveScroll = () => {
-      sessionStorage.setItem("thread-scroll-y", window.scrollY.toString());
-    };
-
-    window.addEventListener("beforeunload", saveScroll);
-    return () => window.removeEventListener("beforeunload", saveScroll);
-  }, []);
-
-  useEffect(() => {
-    const saved = sessionStorage.getItem("thread-scroll-y");
-    if (!saved) return;
-    window.scrollTo(0, Number(saved));
-  }, [loading]);
-
-  useEffect(() => {
-    load();
+    if (!shortId) return;
+    load(shortId);
   }, [shortId]);
 
-  async function load() {
+  async function load(id: string) {
     setLoading(true);
     setError(false);
 
     try {
-      const threadId = shortId.startsWith("http")
-        ? shortId
-        : `https://localhost/o/${shortId}`;
+      const threadId = id.startsWith("http")
+        ? id
+        : `https://localhost/o/${id}`;
 
       const data = await getThread(threadId);
 
-      if (data.threadStats) {
-        setThreadStats(data.threadStats);
-      }
-
-      setNotes(data.notes ?? []);
+      setThread(data.thread ?? null);
+      setPosts(data.posts ?? []);
     } catch (err) {
       console.error("Failed to load thread", err);
       setError(true);
@@ -72,72 +59,66 @@ export default function ThreadPage() {
     }
   }
 
-  const rootNote = useMemo(
-    () => notes.find((n) => n._local?.threadRoot === n.id),
-    [notes]
+  const rootPost = useMemo(
+    () => posts.find((p) => p.id === thread?.id),
+    [posts, thread]
   );
 
-  const commentNotes = useMemo(
-    () => notes.filter((n) => n.id !== rootNote?.id),
-    [notes, rootNote]
+  const commentPosts = useMemo(
+    () => posts.filter((p) => p.parentId !== null),
+    [posts]
   );
 
-  /*
-   * Add note locally instead of refetching entire thread
-   */
-  function appendNoteLocally(newNote: NoteObject) {
-    setNotes((prev) => [...prev, newNote]);
+  function appendPostLocally(newPost: Post) {
+    setPosts((prev) => [...prev, newPost]);
   }
 
   async function submitThreadReply() {
-    if (!rootText.trim() || !rootNote) return;
+    if (!rootText.trim() || !rootPost || !thread || !user) return;
 
     const result = await createPost({
       content: rootText,
-      inReplyTo: rootNote.id,
-      context: rootNote.context ?? undefined,
+      inReplyTo: rootPost.id,
+      context: thread.groupIri,
     });
 
-    // Optimistic append
-    appendNoteLocally({
+    appendPostLocally({
       id: result.noteId,
-      type: "Note",
+      threadId: thread.id,
+      parentId: rootPost.id,
+      authorIri: user.actorId,
       content: rootText,
-      attributedTo: user!.actorId,
-      published: new Date().toISOString(),
-      inReplyTo: rootNote.id,
-      _local: {
-        threadRoot: rootNote._local!.threadRoot,
-        depth: 1,
-      },
-    } as NoteObject);
+      replyCount: 0,
+      upvotes: 0,
+      downvotes: 0,
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+    });
 
     setRootText("");
   }
 
   async function submitReply(parentId: string, text: string) {
-    if (!text.trim() || !rootNote) return;
-
-    const parent = notes.find((n) => n.id === parentId);
+    if (!text.trim() || !thread || !user) return;
 
     const result = await createPost({
       content: text,
       inReplyTo: parentId,
-      context: rootNote.context ?? undefined,
+      context: thread.groupIri,
     });
 
-    appendNoteLocally({
+    appendPostLocally({
       id: result.noteId,
-      type: "Note",
+      threadId: thread.id,
+      parentId,
+      authorIri: user.actorId,
       content: text,
-      attributedTo: user!.actorId,
-      published: new Date().toISOString(),
-      inReplyTo: parentId,
-      _local: {
-        threadRoot: rootNote._local!.threadRoot,
-        depth: (parent?._local?.depth ?? 0) + 1,
-      },
-    } as NoteObject);
+      replyCount: 0,
+      upvotes: 0,
+      downvotes: 0,
+      isDeleted: false,
+      createdAt: new Date().toISOString(),
+    });
 
     setReplyOpen((r) => ({ ...r, [parentId]: false }));
   }
@@ -156,11 +137,10 @@ export default function ThreadPage() {
         <div className="post" style={{ marginLeft: depth * 24 }}>
           <div className="post-meta">
             <div className="post-author">
-              {post.attributedTo ?? "unknown"}
+              {post.authorIri ?? "unknown"}
             </div>
             <div className="post-date">
-              {post.created &&
-                new Date(post.created).toLocaleString()}
+              {new Date(post.createdAt).toLocaleString()}
             </div>
           </div>
 
@@ -199,7 +179,7 @@ export default function ThreadPage() {
 
         {post.children.length > 0 && (
           <div className="thread-indent">
-            {post.children.map((child: any) => (
+            {post.children.map((child) => (
               <PostRow
                 key={child.id}
                 post={child}
@@ -215,16 +195,16 @@ export default function ThreadPage() {
   if (loading) return <div>Loading…</div>;
   if (error) return <div>Thread not found.</div>;
 
-  const tree = postTreeBuilder(commentNotes);
+  const tree = buildPostTree(commentPosts);
 
   return (
     <main className="forum">
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ display: "inline", marginRight: "0.75rem" }}>
-          {rootNote?.content ?? threadStats?.title ?? "Thread"}
+          {rootPost?.content ?? thread?.title ?? "Thread"}
         </h1>
         <span style={{ color: "#9aa4b2", fontSize: "0.9rem" }}>
-          {rootNote?.attributedTo ?? "unknown"}
+          {rootPost?.authorIri ?? "unknown"}
         </span>
       </div>
 

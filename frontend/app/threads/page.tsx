@@ -6,14 +6,30 @@ import Link from "next/link";
 import {
   getThreadsByGroup,
   createThread,
-  ThreadStats,
-  idFromIri,
 } from "../services/threadService";
+import { Thread } from "../types";
+
+/**
+ * Minimal local helper replacing old idFromIri
+ */
+function idFromIri(iri: string): string | null {
+  if (!iri) return null;
+
+  try {
+    const clean = iri.split("#")[0].split("?")[0];
+    const trimmed = clean.endsWith("/") ? clean.slice(0, -1) : clean;
+    const parts = trimmed.split("/");
+    return parts[parts.length - 1] || null;
+  } catch {
+    return null;
+  }
+}
 
 export default function ThreadsPage() {
-  const [threads, setThreads] = useState<ThreadStats[]>([]);
+  const [threads, setThreads] = useState<Thread[]>([]);
   const [title, setTitle] = useState("");
-  const [loading, setLoading] = useState(true); // start true
+  const [loading, setLoading] = useState(true);
+
   const groupIri = "https://localhost/u/default";
 
   async function loadThreads() {
@@ -21,6 +37,7 @@ export default function ThreadsPage() {
     try {
       const items = await getThreadsByGroup(groupIri);
       setThreads(items);
+
     } finally {
       setLoading(false);
     }
@@ -107,9 +124,7 @@ export default function ThreadsPage() {
                 <tr key={thread.id}>
                   <td style={{ padding: "6px 0" }}>
                     <Link
-                      href={`/threads/${idFromIri(
-                        thread.id
-                      )}`}
+                      href={`/threads/${thread.title}`}
                       style={{ textDecoration: "none" }}
                     >
                       {thread.title}

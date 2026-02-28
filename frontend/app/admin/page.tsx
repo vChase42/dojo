@@ -24,15 +24,13 @@ export default function AdminPage() {
         body: JSON.stringify({ groupName, summary }),
       });
 
-      const text = await res.text();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(text || "Failed to create group");
+        throw new Error(data?.error || "Failed to create group");
       }
 
-      const data = JSON.parse(text);
-
-      setSuccess(`Group created successfully`);
+      setSuccess("Group created successfully");
       setGroupName("");
       setSummary("");
     } catch (err: any) {

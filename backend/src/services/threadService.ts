@@ -8,6 +8,7 @@ export class ThreadService {
 
   constructor(pgPool: Pool) {
     this.pg = pgPool;
+    this.initialize();
   }
 
   // ------------------------------------------------
