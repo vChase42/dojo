@@ -2,13 +2,14 @@
 
 import { Request, Response } from "express";
 import { ActivityPubService } from "../services/activitypubService";
-import { ThreadStatsService, ThreadStats } from "../services/ThreadStatsService";
-import { MongoService } from "../services/mongoService";
+import { ThreadService } from "../services/threadService";
+import { PostsService } from "../services/postsService";
+import { Thread } from "../types";
 
 export function ThreadController(
   ap: ActivityPubService,
-  ts: ThreadStatsService,
-  mdb: MongoService
+  ts: ThreadService,
+  ps: PostsService
 ) {
   return {
     /**
@@ -28,6 +29,7 @@ export function ThreadController(
           return res.status(400).json({ error: "title is required" });
         }
 
+        // 1️⃣ Create AP root note
         const { noteId } = await ap.createNote(
           user.actorId,
           title,
@@ -35,11 +37,24 @@ export function ThreadController(
           { to: [groupIri] }
         );
 
+        if (!noteId) {
+          throw new Error("Failed to obtain noteId from ActivityPub");
+        }
+
+        // 2️⃣ Create thread row
         await ts.createThread({
           groupIri,
           rootNoteIri: noteId,
           title,
           creatorIri: user.actorId,
+        });
+
+        // 3️⃣ Create root post row
+        await ps.createPost({
+          id: noteId,
+          authorIri: user.actorId,
+          content: title,
+          parentId: null,
         });
 
         return res.status(201).json({
@@ -68,7 +83,7 @@ export function ThreadController(
             .json({ error: "groupIRI is required and must be string" });
         }
 
-        const threads: ThreadStats[] = await ts.listByGroup(groupIRI);
+        const threads: Thread[] = await ts.listByGroup(groupIRI);
 
         return res.json({
           ok: true,
@@ -105,28 +120,6 @@ export function ThreadController(
       } catch (err: any) {
         console.error("getThreadStats error:", err);
         return res.status(500).json({ error: "Failed to fetch thread stats" });
-      }
-    },
-
-    /**
-     * GET /api/thread/:id
-     * Fetch full thread (notes + stats)
-     */
-    async getThreadConversation(req: Request, res: Response) {
-      try {
-        const { id: threadIri } = req.params;
-
-        const notes = await mdb.getThreadNotes(threadIri);
-        
-        const threadStats = await ts.getByRootNote(threadIri);
-
-        return res.json({
-          threadStats,
-          notes,
-        });
-      } catch (err) {
-        console.error("getThread error:", err);
-        return res.status(500).json({ error: "failed_to_fetch_thread" });
       }
     },
   };

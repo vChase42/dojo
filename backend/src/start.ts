@@ -22,8 +22,8 @@ import { publicRoutes } from "./routes/publicRoutes";
 // AP SERVER
 import { setupActivityPub } from "./activitypub/activitypub";
 import type { APEnv } from "./activitypub/activitypub";
-import { NoteStatsService } from "./services/NoteStatsService";
-import { ThreadStatsService } from "./services/ThreadStatsService";
+import { PostsService } from "./services/postsService";
+import { ThreadService } from "./services/threadService";
 import { MongoService } from "./services/mongoService";
 
 
@@ -76,33 +76,6 @@ async function main() {
   await pgPool.query("SELECT 1"); // sanity check
   console.log("✅ [Postgres] Connected successfully");
 
-  await pgPool.query(`
-    CREATE TABLE IF NOT EXISTS note_stats (
-      note_id TEXT PRIMARY KEY,
-      replies INTEGER NOT NULL DEFAULT 0,
-      ups INTEGER NOT NULL DEFAULT 0,
-      downs INTEGER NOT NULL DEFAULT 0
-    );
-  `);
-  await pgPool.query(`
-    CREATE TABLE IF NOT EXISTS threads (
-      id SERIAL PRIMARY KEY,
-
-      group_iri TEXT NOT NULL,
-      root_note_iri TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      creator_iri TEXT NOT NULL,
-
-      reply_count INTEGER NOT NULL DEFAULT 0,
-      last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-      is_locked BOOLEAN NOT NULL DEFAULT FALSE,
-      is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
-      is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
   
   // ----------------------------
   // 📌 Setup Express app
@@ -125,8 +98,8 @@ async function main() {
   const authService = new AuthService(mdb);
   const mongoService = new MongoService(mdb);
   const activityPubService = new ActivityPubService(apex, mdb);
-  const noteStatsService = new NoteStatsService(pgPool);
-  const threadStatsService = new ThreadStatsService(pgPool);
+  const postsService = new PostsService(pgPool);
+  const threadService = new ThreadService(pgPool);
   const userService = new UserService(mdb);    //update this to utilize pg pls. 
   
   
@@ -134,8 +107,8 @@ async function main() {
   // 📌 Mount Routes
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService,noteStatsService, threadStatsService,mongoService));
-  app.use("/api", publicRoutes(activityPubService,mongoService,threadStatsService));
+  app.use("/api", postRoutes(authService, userService, activityPubService,postsService, threadService,mongoService));
+  app.use("/api", publicRoutes(activityPubService,postsService,threadService));
 
   // ----------------------------
   // 📌 Static files (optional)

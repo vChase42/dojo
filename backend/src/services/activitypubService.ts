@@ -36,49 +36,6 @@ export class ActivityPubService {
     return actor.id;
   }
 
-//--------------------------- replace the below with createCollection method maybe.
-  // async createThread(
-  //   createdBy: string,
-  //   options: {
-  //     title: string;
-  //     slug?: string;        // optional human-readable id
-  //     published?: string;   // for ingestion / backfill
-  //   }
-  // ): Promise<{ threadId: string }> {
-  //   const { title, slug, published } = options;
-
-  //   if (!title || typeof title !== "string") {
-  //     throw new Error("Thread title is required");
-  //   }
-
-  //   // Generate a stable thread ID
-  //   const idPart = slug ?? crypto.randomUUID();
-  //   const threadId = `https://${this.apex.domain}/t/${idPart}`;
-
-  //   // Safety: never overwrite an existing thread
-  //   const existing = await this.apex.store.getObject(threadId);
-  //   if (existing) {
-  //     throw new Error("Thread already exists");
-  //   }
-
-  //   const thread = {
-  //     "@context": "https://www.w3.org/ns/activitystreams",
-  //     id: threadId,
-  //     type: "OrderedCollection",
-  //     name: title,
-  //     attributedTo: createdBy,
-  //     slug: idPart,
-  //     orderedItems: [],
-  //     totalItems: 0,
-  //     first: `${threadId}?page=1`,
-  //     published: published ?? new Date().toISOString(),
-  //   };
-
-  //   await this.apex.store.saveObject(thread);
-
-  //   return { threadId };
-  // }
-
   async createGroup(
     groupName: string,
     options?: {
@@ -202,30 +159,6 @@ export class ActivityPubService {
   }
 
 
-  //replace the ordered collections with notes. simplify it. and then, this thing below will have to query by... tags? what? still confused a little.
-  //okay, so this will be replaced with getPostsFromId. it interacts exclusivelya with mongo, not ap. 
-  //we will begin adding way more metadata to posts when they are created. and the users will never see em!
-  //this metadata will include _local: {} now.
-
-  //db.objects.find({
-  // "_local.isThreadRoot": true
-  // }).sort({ published: -1 })
-  //so, u'll be using that code. ^thats shell code, but convert it to ts.
-  //and thats how getPostsFromId will work^. 
-
-  //   "_local": {
-  //   "threadRoot": "https://dojo.example/o/root",
-  //   "threadId": "t:123",
-  //   "depth": 2
-  // }
-  // async getThreads(limit = 50) {
-  //   return this.mdb
-  //     .collection("objects")
-  //     .find({ type: "OrderedCollection" })
-  //     .sort({ published: -1 })
-  //     .limit(limit)
-  //     .toArray();
-  // }
 
 async addNoteToOrderedCollection(
   actorId: string,

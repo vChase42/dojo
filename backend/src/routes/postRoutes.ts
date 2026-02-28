@@ -5,9 +5,9 @@ import { requireAuth } from "../middleware/requireAuth";
 import { AuthService } from "../services/authService";
 import { UserService } from "../services/userService";
 import { ActivityPubService } from "../services/activitypubService";
-import { NoteStatsService } from "../services/NoteStatsService";
-import { ThreadStatsService } from "../services/ThreadStatsService";
-import { ReplyController } from "../controllers/replyController";
+import { PostsService } from "../services/postsService";
+import { ThreadService } from "../services/threadService";
+import { PostController } from "../controllers/postController";
 import { ThreadController } from "../controllers/threadController";
 import { GroupController } from "../controllers/groupController";
 import { MongoService } from "../services/mongoService";
@@ -17,13 +17,13 @@ export function postRoutes(
   auth: AuthService,
   users: UserService,
   ap: ActivityPubService,
-  ns: NoteStatsService,
-  ts: ThreadStatsService,
+  ps: PostsService,
+  ts: ThreadService,
   ms: MongoService,
 ) {
   const router = Router();
-  const replyController = ReplyController(ap,ns,ts);
-  const threadController = ThreadController(ap,ts,ms);
+  const replyController = PostController(ap,ps,ts);
+  const threadController = ThreadController(ap,ts,ps);
   const groupController = GroupController(ap);
   /**
    * Threads

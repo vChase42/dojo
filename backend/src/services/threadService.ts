@@ -1,40 +1,57 @@
-// CREATE TABLE groups (
-//   id SERIAL PRIMARY KEY,
-
-//   group_iri TEXT NOT NULL UNIQUE,
-//   name TEXT NOT NULL,
-//   description TEXT,
-
-//   is_public BOOLEAN NOT NULL DEFAULT TRUE,
-//   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-
-//   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-// );
+// src/services/threadService.ts
 
 import { Pool } from "pg";
+import { Thread } from "../types";
 
-export interface ThreadStats {
-  groupIri: string;
-  rootNoteIri: string;
-  title: string;
-  creatorIri: string;
-
-  replyCount: number;
-  lastActivityAt: string;
-
-  isLocked: boolean;
-  isPinned: boolean;
-  isDeleted: boolean;
-
-  createdAt: string;
-}
-
-export class ThreadStatsService {
+export class ThreadService {
   private pg: Pool;
 
   constructor(pgPool: Pool) {
     this.pg = pgPool;
   }
+
+  // ------------------------------------------------
+  // Initialization
+  // ------------------------------------------------
+
+  /**
+   * Ensure threads table + indexes exist.
+   * Safe to call on startup.
+   */
+  async initialize(): Promise<void> {
+    await this.pg.query(`
+      CREATE TABLE IF NOT EXISTS threads (
+        id TEXT PRIMARY KEY,                -- root note IRI
+
+        group_iri TEXT NOT NULL,
+        title TEXT NOT NULL,
+        creator_iri TEXT NOT NULL,
+
+        reply_count INTEGER NOT NULL DEFAULT 0,
+        last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+        is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+        is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+        is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pg.query(`
+      CREATE INDEX IF NOT EXISTS idx_threads_group
+      ON threads(group_iri);
+    `);
+
+    await this.pg.query(`
+      CREATE INDEX IF NOT EXISTS idx_threads_group_activity
+      ON threads(group_iri, is_deleted, is_pinned, last_activity_at DESC);
+    `);
+  }
+
+  // ------------------------------------------------
+  // Creation
+  // ------------------------------------------------
 
   /**
    * Create a new thread entry.
@@ -58,8 +75,8 @@ export class ThreadStatsService {
     await this.pg.query(
       `
       INSERT INTO threads (
+        id,
         group_iri,
-        root_note_iri,
         title,
         creator_iri,
         reply_count,
@@ -67,17 +84,21 @@ export class ThreadStatsService {
         created_at
       )
       VALUES ($1, $2, $3, $4, 0, $5, $5)
-      ON CONFLICT (root_note_iri) DO NOTHING
+      ON CONFLICT (id) DO NOTHING
       `,
       [
-        groupIri,
         rootNoteIri,
+        groupIri,
         title,
         creatorIri,
         publishedAt ?? new Date().toISOString(),
       ]
     );
   }
+
+  // ------------------------------------------------
+  // Aggregates
+  // ------------------------------------------------
 
   /**
    * Increment reply count and bump activity time.
@@ -93,7 +114,7 @@ export class ThreadStatsService {
       SET
         reply_count = reply_count + 1,
         last_activity_at = $2
-      WHERE root_note_iri = $1
+      WHERE id = $1
       `,
       [
         rootNoteIri,
@@ -102,17 +123,21 @@ export class ThreadStatsService {
     );
   }
 
+  // ------------------------------------------------
+  // Reads
+  // ------------------------------------------------
+
   /**
    * Fetch thread metadata by root note IRI.
    */
   async getByRootNote(
     rootNoteIri: string
-  ): Promise<ThreadStats | null> {
+  ): Promise<Thread | null> {
     const res = await this.pg.query(
       `
       SELECT
         group_iri,
-        root_note_iri,
+        id,
         title,
         creator_iri,
         reply_count,
@@ -122,7 +147,7 @@ export class ThreadStatsService {
         is_deleted,
         created_at
       FROM threads
-      WHERE root_note_iri = $1
+      WHERE id = $1
       `,
       [rootNoteIri]
     );
@@ -130,9 +155,10 @@ export class ThreadStatsService {
     if (res.rowCount === 0) return null;
 
     const row = res.rows[0];
+
     return {
       groupIri: row.group_iri,
-      rootNoteIri: row.root_note_iri,
+      id: row.id,
       title: row.title,
       creatorIri: row.creator_iri,
 
@@ -155,12 +181,12 @@ export class ThreadStatsService {
     groupIri: string,
     limit = 50,
     offset = 0
-  ): Promise<ThreadStats[]> {
+  ): Promise<Thread[]> {
     const res = await this.pg.query(
       `
       SELECT
         group_iri,
-        root_note_iri,
+        id,
         title,
         creator_iri,
         reply_count,
@@ -182,7 +208,7 @@ export class ThreadStatsService {
 
     return res.rows.map((row) => ({
       groupIri: row.group_iri,
-      rootNoteIri: row.root_note_iri,
+      id: row.id,
       title: row.title,
       creatorIri: row.creator_iri,
 
@@ -197,43 +223,42 @@ export class ThreadStatsService {
     }));
   }
 
-  /**
-   * Moderation helpers
-   */
+  // ------------------------------------------------
+  // Moderation
+  // ------------------------------------------------
+
   async lockThread(rootNoteIri: string): Promise<void> {
     await this.pg.query(
-      `UPDATE threads SET is_locked = TRUE WHERE root_note_iri = $1`,
+      `UPDATE threads SET is_locked = TRUE WHERE id = $1`,
       [rootNoteIri]
     );
   }
 
   async unlockThread(rootNoteIri: string): Promise<void> {
     await this.pg.query(
-      `UPDATE threads SET is_locked = FALSE WHERE root_note_iri = $1`,
+      `UPDATE threads SET is_locked = FALSE WHERE id = $1`,
       [rootNoteIri]
     );
   }
 
   async pinThread(rootNoteIri: string): Promise<void> {
     await this.pg.query(
-      `UPDATE threads SET is_pinned = TRUE WHERE root_note_iri = $1`,
+      `UPDATE threads SET is_pinned = TRUE WHERE id = $1`,
       [rootNoteIri]
     );
   }
 
   async unpinThread(rootNoteIri: string): Promise<void> {
     await this.pg.query(
-      `UPDATE threads SET is_pinned = FALSE WHERE root_note_iri = $1`,
+      `UPDATE threads SET is_pinned = FALSE WHERE id = $1`,
       [rootNoteIri]
     );
   }
 
   async softDeleteThread(rootNoteIri: string): Promise<void> {
     await this.pg.query(
-      `UPDATE threads SET is_deleted = TRUE WHERE root_note_iri = $1`,
+      `UPDATE threads SET is_deleted = TRUE WHERE id = $1`,
       [rootNoteIri]
     );
   }
 }
-
-

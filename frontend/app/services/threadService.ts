@@ -1,8 +1,8 @@
 // app/services/threadService.ts
 
 export interface ThreadStats {
+  id: string;
   groupIri: string;
-  rootNoteIri: string;
   title: string;
   creatorIri: string;
 

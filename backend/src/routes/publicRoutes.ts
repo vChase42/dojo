@@ -2,13 +2,15 @@
 
 import { Router } from "express";
 import { ThreadController } from "../controllers/threadController";
-import { MongoService } from "../services/mongoService";
+import { PostsService } from "../services/postsService";
 import { ActivityPubService } from "../services/activitypubService";
-import { ThreadStatsService } from "../services/ThreadStatsService";
+import { ThreadService } from "../services/threadService";
+import { PostController } from "../controllers/postController";
 
-export function publicRoutes(ap: ActivityPubService, ms: MongoService, ts: ThreadStatsService) {
+export function publicRoutes(ap: ActivityPubService, ps: PostsService, ts: ThreadService) {
   const router = Router();
-  const threadController = ThreadController(ap, ts, ms);
+  const threadController = ThreadController(ap, ts, ps);
+  const replyController = PostController(ap,ps,ts);
 
   // List all threads (local, forum index)
   router.get(
@@ -25,7 +27,7 @@ export function publicRoutes(ap: ActivityPubService, ms: MongoService, ts: Threa
   // Get a thread stats and list of all the relevant notes.
   router.get(
     "/thread/:id",
-    threadController.getThreadConversation
+    replyController.getThreadPosts
   );
 
   return router;

@@ -104,11 +104,11 @@ export default function ThreadsPage() {
             </thead>
             <tbody>
               {threads.map((thread) => (
-                <tr key={thread.rootNoteIri}>
+                <tr key={thread.id}>
                   <td style={{ padding: "6px 0" }}>
                     <Link
                       href={`/threads/${idFromIri(
-                        thread.rootNoteIri
+                        thread.id
                       )}`}
                       style={{ textDecoration: "none" }}
                     >
