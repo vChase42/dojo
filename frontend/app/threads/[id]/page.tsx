@@ -25,7 +25,6 @@ export default function ThreadPage() {
       : Array.isArray(params.id)
       ? params.id[0]
       : null;
-    console.log(shortId);
   const [posts, setPosts] = useState<Post[]>([]);
   const [thread, setThread] = useState<Thread | null>(null);
   const [replyOpen, setReplyOpen] = useState<ReplyState>({});
@@ -46,7 +45,6 @@ export default function ThreadPage() {
       const threadId = id.startsWith("http")
         ? id
         : `https://localhost/o/${id}`;
-
       const data = await getThread(threadId);
 
       setThread(data.thread ?? null);

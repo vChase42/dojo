@@ -76,7 +76,7 @@ export function ThreadController(
     async getThreads(req: Request, res: Response) {
       try {
         const { groupIRI } = req.query;
-        
+
 
         if (!groupIRI || typeof groupIRI !== "string") {
           return res
@@ -85,7 +85,6 @@ export function ThreadController(
         }
 
         const threads: Thread[] = await ts.listByGroup(groupIRI);
-        console.log(threads);
         return res.json({
           ok: true,
           items: threads,

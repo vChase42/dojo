@@ -117,7 +117,7 @@ export function PostController(
     async getThreadPosts(req: Request, res: Response) {
       try {
         const { threadId } = req.params;
-
+        console.log(threadId);
         if (!threadId) {
           return res.status(400).json({ error: "threadId required" });
         }

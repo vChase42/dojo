@@ -26,7 +26,7 @@ export function publicRoutes(ap: ActivityPubService, ps: PostsService, ts: Threa
 
   // Get a thread stats and list of all the relevant notes.
   router.get(
-    "/thread/:id",
+    "/thread/:threadId",
     replyController.getThreadPosts
   );
 

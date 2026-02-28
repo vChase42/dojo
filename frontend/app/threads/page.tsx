@@ -124,7 +124,7 @@ export default function ThreadsPage() {
                 <tr key={thread.id}>
                   <td style={{ padding: "6px 0" }}>
                     <Link
-                      href={`/threads/${thread.title}`}
+                      href={`/threads/${idFromIri(thread.id)}`}
                       style={{ textDecoration: "none" }}
                     >
                       {thread.title}
