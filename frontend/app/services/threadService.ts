@@ -44,13 +44,23 @@ export async function getThreadsByGroup(
   return data.items ?? [];
 }
 
-export async function getThread(
-  threadId: string
-): Promise<ThreadWithPosts> {
-  return apiFetch<ThreadWithPosts>(
-    `/thread/${encodeURIComponent(threadId)}`
-  );
-}
+  export async function getThread(params: {
+    threadId: string;
+    page: number;
+    limit?: number;
+  }): Promise<ThreadWithPosts> {
+    const qs = new URLSearchParams({
+      page: String(params.page),
+    });
+
+    if (params.limit !== undefined) {
+      qs.set("limit", String(params.limit));
+    }
+
+    return apiFetch<ThreadWithPosts>(
+      `/thread/${encodeURIComponent(params.threadId)}?${qs.toString()}`
+    );
+  }
 
 /**
  * Create a new thread (root post).

@@ -10,7 +10,7 @@ import { PostController } from "../controllers/postController";
 export function publicRoutes(ap: ActivityPubService, ps: PostsService, ts: ThreadService) {
   const router = Router();
   const threadController = ThreadController(ap, ts, ps);
-  const replyController = PostController(ap,ps,ts);
+  const postController = PostController(ap,ps,ts);
 
   // List all threads (local, forum index)
   router.get(
@@ -27,7 +27,7 @@ export function publicRoutes(ap: ActivityPubService, ps: PostsService, ts: Threa
   // Get a thread stats and list of all the relevant notes.
   router.get(
     "/thread/:threadId",
-    replyController.getThreadPosts
+    postController.getThreadPosts
   );
 
   return router;

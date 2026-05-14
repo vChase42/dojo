@@ -45,7 +45,7 @@ export default function ThreadPage() {
       const threadId = id.startsWith("http")
         ? id
         : `https://localhost/o/${id}`;
-      const data = await getThread(threadId);
+      const data = await getThread({threadId, page: 1});
 
       setThread(data.thread ?? null);
       setPosts(data.posts ?? []);

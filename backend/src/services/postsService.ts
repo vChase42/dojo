@@ -26,6 +26,11 @@ export class PostsService {
 
         is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
 
+        moderation_status TEXT NOT NULL DEFAULT 'visible',
+        deleted_reason TEXT NULL,
+        deleted_by TEXT NULL,
+        deleted_at TIMESTAMPTZ NULL,
+
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
@@ -172,23 +177,119 @@ export class PostsService {
     return this.mapPost(res.rows[0]);
   }
 
-  async getThreadPosts(threadId: string): Promise<Post[]> {
-    const res = await this.pg.query(
-      `SELECT * FROM posts WHERE thread_id = $1 ORDER BY created_at ASC`,
-      [threadId]
+  async getThreadPosts(params: {
+    threadId: string;
+    viewerIri?: string | null;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    posts: Post[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const limit = Math.min(params.limit ?? 50, 100);
+    const offset = Math.max(params.offset ?? 0, 0);
+
+    const totalRes = await this.pg.query(
+      `
+      SELECT COUNT(*)::int AS total
+      FROM posts
+      WHERE thread_id = $1
+      `,
+      [params.threadId]
     );
-    return res.rows.map(this.mapPost);
+
+    const res = await this.pg.query(
+      `
+      SELECT
+        p.*,
+        COALESCE(v.value, 0) AS viewer_vote
+      FROM posts p
+      LEFT JOIN post_votes v
+        ON v.post_id = p.id
+        AND v.user_iri = $4
+      WHERE p.thread_id = $1
+      ORDER BY p.created_at ASC
+      LIMIT $2
+      OFFSET $3
+      `,
+      [
+        params.threadId,
+        limit,
+        offset,
+        params.viewerIri ?? "",
+      ]
+    );
+
+    return {
+      posts: res.rows.map((row) =>
+        this.mapPost(row, params.viewerIri)
+      ),
+      total: totalRes.rows[0].total,
+      limit,
+      offset,
+    };
   }
 
-  async getReplies(postId: string): Promise<Post[]> {
-    const res = await this.pg.query(
-      `SELECT * FROM posts WHERE parent_id = $1 ORDER BY created_at ASC`,
-      [postId]
+  //i wish i knew what we were working on rn. https://chatgpt.com/c/6a005680-bccc-83ea-a1a9-01d173b289bd  
+  //we in deep refactoring some architecture here. splitting apart replies and votes while simultaneously creating framework for moderation/editing
+  async getReplies(params: {
+    postId: string;
+    viewerIri?: string | null;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    replies: Post[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const limit = Math.min(params.limit ?? 50, 100);
+    const offset = Math.max(params.offset ?? 0, 0);
+
+    const totalRes = await this.pg.query(
+      `
+      SELECT COUNT(*)::int AS total
+      FROM posts
+      WHERE parent_id = $1
+      `,
+      [params.postId]
     );
-    return res.rows.map(this.mapPost);
+
+    const res = await this.pg.query(
+      `
+      SELECT
+        p.*,
+        COALESCE(v.value, 0) AS viewer_vote
+      FROM posts p
+      LEFT JOIN post_votes v
+        ON v.post_id = p.id
+        AND v.user_iri = $4
+      WHERE p.parent_id = $1
+      ORDER BY p.created_at ASC
+      LIMIT $2
+      OFFSET $3
+      `,
+      [
+        params.postId,
+        limit,
+        offset,
+        params.viewerIri ?? "",
+      ]
+    );
+
+    return {
+      replies: res.rows.map((row) =>
+        this.mapPost(row, params.viewerIri)
+      ),
+      total: totalRes.rows[0].total,
+      limit,
+      offset,
+    };
   }
 
-  async getPostStats(postId: string) {
+async getPostStats(postId: string) {
     const res = await this.pg.query(
       `
       SELECT
@@ -282,25 +383,54 @@ export class PostsService {
     }
   }
 
-  async getPostRevisions(postId: string): Promise<PostRevision[]> {
-    const res = await this.pg.query(
+  async getPostRevisions(params: {
+    postId: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    revisions: PostRevision[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const limit = Math.min(params.limit ?? 50, 100);
+    const offset = Math.max(params.offset ?? 0, 0);
+
+    const totalRes = await this.pg.query(
       `
-      SELECT * FROM post_revisions
+      SELECT COUNT(*)::int AS total
+      FROM post_revisions
       WHERE post_id = $1
-      ORDER BY revision_number DESC
       `,
-      [postId]
+      [params.postId]
     );
 
-    return res.rows.map((r) => ({
-      id: r.id,
-      postId: r.post_id,
-      revisionNumber: r.revision_number,
-      editorIri: r.editor_iri,
-      content: r.content,
-      editedAt: r.edited_at,
-      editReason: r.edit_reason,
-    }));
+    const res = await this.pg.query(
+      `
+      SELECT *
+      FROM post_revisions
+      WHERE post_id = $1
+      ORDER BY revision_number DESC
+      LIMIT $2
+      OFFSET $3
+      `,
+      [params.postId, limit, offset]
+    );
+
+    return {
+      revisions: res.rows.map((r) => ({
+        id: r.id,
+        postId: r.post_id,
+        revisionNumber: r.revision_number,
+        editorIri: r.editor_iri,
+        content: r.content,
+        editedAt: r.edited_at,
+        editReason: r.edit_reason,
+      })),
+      total: totalRes.rows[0].total,
+      limit,
+      offset,
+    };
   }
 
   async revertPost(params: {
@@ -403,13 +533,30 @@ export class PostsService {
   // Moderation
   // ------------------------------------------------
 
-  async softDeletePost(postId: string): Promise<void> {
+  async softDeletePost(params: {
+    postId: string;
+    deletedBy: string;
+    reason?: string;
+  }): Promise<void> {
     await this.pg.query(
-      `UPDATE posts SET is_deleted = TRUE WHERE id = $1`,
-      [postId]
+      `
+      UPDATE posts
+      SET
+        is_deleted = TRUE,
+        moderation_status = 'deleted',
+        deleted_reason = $2,
+        deleted_by = $3,
+        deleted_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+      `,
+      [
+        params.postId,
+        params.reason ?? null,
+        params.deletedBy,
+      ]
     );
   }
-
   // ------------------------------------------------
   // Internal helpers
   // ------------------------------------------------
@@ -446,20 +593,51 @@ export class PostsService {
     }
   }
 
-  private mapPost = (row: any): Post => ({
+  private mapPost = (
+    row: any,
+    viewerIri?: string | null
+  ): Post => ({
     id: row.id,
+
     threadId: row.thread_id,
+    parentId: row.parent_id,
+
     authorIri: row.author_iri,
     content: row.content,
-    parentId: row.parent_id,
+
     upvotes: row.upvotes,
     downvotes: row.downvotes,
     score: row.upvotes - row.downvotes,
+
     replyCount: row.reply_count,
     revisionCount: row.revision_count,
+
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+
     isDeleted: row.is_deleted,
+
+    // moderation
+    moderationStatus: row.moderation_status ?? "visible",
+    deletedReason: row.deleted_reason ?? null,
+    deletedAt: row.deleted_at ?? null,
+    deletedBy: row.deleted_by ?? null,
+
+    // viewer state
+    viewerVote: row.viewer_vote ?? 0,
+
+    // permissions
+    canEdit: viewerIri
+      ? viewerIri === row.author_iri
+      : false,
+
+    canDelete: viewerIri
+      ? viewerIri === row.author_iri
+      : false,
+
+    canVote: viewerIri
+      ? viewerIri !== row.author_iri
+      : false,
   });
 
   private async getPostOrThrow(id: string): Promise<Post> {

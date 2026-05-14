@@ -2,11 +2,12 @@
 
 /**
  * Thread metadata returned from:
- *   GET /api/thread/stats
+ *   GET /api/threadstats
  *   GET /api/threads
  */
 export interface Thread {
-  id: string;              // root post IRI (threadId)
+  id: string; // root post IRI (threadId)
+
   groupIri: string;
   title: string;
   creatorIri: string;
@@ -21,33 +22,49 @@ export interface Thread {
   createdAt: string;
 }
 
-
 /**
  * Canonical Post model returned from:
  *   GET /api/thread/:threadId
  *   POST /api/editpost
  *
- * This is your normalized Postgres domain object.
- * No ActivityPub JSON-LD shapes here.
+ * Normalized backend domain object.
+ * No ActivityPub JSON-LD structures here.
  */
 export interface Post {
-  id: string;              // note IRI
-  threadId: string;        // root post IRI
-  parentId: string | null; // direct parent post id
+  id: string; // note IRI
+
+  threadId: string; // root thread IRI
+  parentId: string | null;
 
   authorIri: string;
   content: string;
 
-  replyCount: number;      // direct children count
+  replyCount: number;
+
   upvotes: number;
   downvotes: number;
 
   isDeleted: boolean;
 
   createdAt: string;
-  updatedAt?: string;      // optional if your API returns it
+  updatedAt?: string;
 }
 
+/**
+ * Generic pagination metadata
+ * returned by paginated endpoints.
+ */
+export interface Pagination {
+  page: number;
+  limit: number;
+  offset: number;
+
+  total: number;
+  totalPages: number;
+
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
 
 /**
  * Response shape for:
@@ -55,14 +72,16 @@ export interface Post {
  */
 export interface ThreadWithPosts {
   ok: boolean;
+
   thread: Thread | null;
+
   posts: Post[];
+
+  pagination: Pagination;
 }
 
-
 /**
- * Tree node used for nested UI rendering.
- * Pure frontend type.
+ * Nested frontend-only thread tree node.
  */
 export type PostTreeNode = Post & {
   children: PostTreeNode[];

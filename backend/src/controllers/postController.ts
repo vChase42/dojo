@@ -117,24 +117,75 @@ export function PostController(
     async getThreadPosts(req: Request, res: Response) {
       try {
         const { threadId } = req.params;
-        console.log(threadId);
+
         if (!threadId) {
-          return res.status(400).json({ error: "threadId required" });
+          return res.status(400).json({
+            error: "threadId required",
+          });
         }
 
-        const posts = await ps.getThreadPosts(threadId);
+        // Require explicit page number from client
+        const pageRaw = req.query.page;
+
+        if (pageRaw === undefined) {
+          return res.status(400).json({
+            error: "page query parameter required",
+          });
+        }
+
+        const page = Number(pageRaw);
+
+        if (!Number.isInteger(page) || page < 1) {
+          return res.status(400).json({
+            error: "page must be a positive integer",
+          });
+        }
+
+        // optional limit
+        const limitRaw = req.query.limit;
+        const limit =
+          limitRaw !== undefined
+            ? Math.min(Math.max(Number(limitRaw), 1), 100)
+            : 50;
+
+        if (!Number.isInteger(limit)) {
+          return res.status(400).json({
+            error: "limit must be an integer",
+          });
+        }
+
+        const offset = (page - 1) * limit;
+
+        const result = await ps.getThreadPosts({
+          threadId,
+          limit,
+          offset,
+        });
+
         const threadMeta = await ts.getByRootNote(threadId);
 
         return res.status(200).json({
           ok: true,
           thread: threadMeta,
-          posts,
+
+          posts: result.posts,
+
+          pagination: {
+            page,
+            limit,
+            offset,
+            total: result.total,
+            totalPages: Math.ceil(result.total / limit),
+            hasNextPage: offset + result.posts.length < result.total,
+            hasPreviousPage: page > 1,
+          },
         });
       } catch (err: any) {
         console.error("getThreadPosts error:", err);
-        return res
-          .status(500)
-          .json({ error: err.message || "Failed to fetch thread" });
+
+        return res.status(500).json({
+          error: err.message || "Failed to fetch thread",
+        });
       }
     },
   };

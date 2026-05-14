@@ -19,25 +19,48 @@ export type Thread = {
 
 
 export type Post = {
-  id: string;                 // note IRI (AP ID)
-  threadId: string;           // root thread IRI
+  id: string; // ActivityPub note IRI
+
+  threadId: string; // root thread IRI
+  parentId?: string | null;
+
   authorIri: string;
 
   content: string;
 
-  parentId?: string | null;   // reply support
-
+  // voting
   upvotes: number;
   downvotes: number;
-  score: number;              // derived (upvotes - downvotes)
+  score: number;
 
-  replyCount: number;         // direct replies
-  revisionCount: number;      // total revisions
+  // reply/revision metadata
+  replyCount: number;
+  revisionCount: number;
 
+  // timestamps
   createdAt: Date;
   updatedAt: Date;
 
+  // deletion/moderation
   isDeleted: boolean;
+
+  moderationStatus:
+    | "visible"
+    | "deleted"
+    | "hidden"
+    | "moderated";
+
+  deletedReason?: string | null;
+  deletedBy?: string | null;
+  deletedAt?: Date | null;
+
+  // viewer-specific state
+  viewerVote: -1 | 0 | 1;
+
+  // permissions
+  canEdit: boolean;
+  canDelete: boolean;
+  canVote: boolean;
 };
 
 
