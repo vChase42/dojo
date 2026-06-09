@@ -119,45 +119,19 @@ export function PostController(
         const { threadId } = req.params;
 
         if (!threadId) {
-          return res.status(400).json({
-            error: "threadId required",
-          });
+          return res.status(400).json({ error: "threadId required" });
         }
 
-        // Require explicit page number from client
-        const pageRaw = req.query.page;
+        const user = req.user as any;
+        const viewerIri = user?.actorId ?? null;
 
-        if (pageRaw === undefined) {
-          return res.status(400).json({
-            error: "page query parameter required",
-          });
-        }
-
-        const page = Number(pageRaw);
-
-        if (!Number.isInteger(page) || page < 1) {
-          return res.status(400).json({
-            error: "page must be a positive integer",
-          });
-        }
-
-        // optional limit
-        const limitRaw = req.query.limit;
-        const limit =
-          limitRaw !== undefined
-            ? Math.min(Math.max(Number(limitRaw), 1), 100)
-            : 50;
-
-        if (!Number.isInteger(limit)) {
-          return res.status(400).json({
-            error: "limit must be an integer",
-          });
-        }
-
+        const page = Math.max(Number(req.query.page ?? 1), 1);
+        const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 100);
         const offset = (page - 1) * limit;
 
         const result = await ps.getThreadPosts({
           threadId,
+          viewerIri,
           limit,
           offset,
         });
@@ -167,16 +141,14 @@ export function PostController(
         return res.status(200).json({
           ok: true,
           thread: threadMeta,
-
           posts: result.posts,
-
           pagination: {
             page,
-            limit,
-            offset,
+            limit: result.limit,
+            offset: result.offset,
             total: result.total,
-            totalPages: Math.ceil(result.total / limit),
-            hasNextPage: offset + result.posts.length < result.total,
+            totalPages: Math.ceil(result.total / result.limit),
+            hasNextPage: result.offset + result.posts.length < result.total,
             hasPreviousPage: page > 1,
           },
         });

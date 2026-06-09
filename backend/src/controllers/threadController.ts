@@ -77,17 +77,34 @@ export function ThreadController(
       try {
         const { groupIRI } = req.query;
 
-
         if (!groupIRI || typeof groupIRI !== "string") {
           return res
             .status(400)
             .json({ error: "groupIRI is required and must be string" });
         }
 
-        const threads: Thread[] = await ts.listByGroup(groupIRI);
+        const page = Math.max(Number(req.query.page ?? 1), 1);
+        const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 100);
+        const offset = (page - 1) * limit;
+
+        const result = await ts.listByGroup({
+          groupIri: groupIRI,
+          limit,
+          offset,
+        });
+
         return res.json({
           ok: true,
-          items: threads,
+          items: result.items,
+          pagination: {
+            page,
+            limit: result.limit,
+            offset: result.offset,
+            total: result.total,
+            totalPages: Math.ceil(result.total / result.limit),
+            hasNextPage: result.offset + result.items.length < result.total,
+            hasPreviousPage: page > 1,
+          },
         });
       } catch (err: any) {
         console.error("getThreads error:", err);

@@ -1,7 +1,8 @@
 // src/types.ts
 
 export type Thread = {
-  id: string;                 // root note IRI (AP ID)
+  id: string; // root note IRI (AP ID)
+
   groupIri: string;
 
   title: string;
@@ -14,7 +15,19 @@ export type Thread = {
   isPinned: boolean;
   isDeleted: boolean;
 
+  // moderation
+  moderationStatus:
+    | "visible"
+    | "deleted"
+    | "hidden"
+    | "moderated";
+
+  deletedReason?: string | null;
+  deletedBy?: string | null;
+  deletedAt?: Date | null;
+
   createdAt: Date;
+  updatedAt: Date;
 };
 
 

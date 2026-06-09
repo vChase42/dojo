@@ -1,0 +1,19 @@
+sqlcmd cheat sheet:
+
+.help → list commands
+
+.mode raw → show raw output
+
+.output filename → save query results
+
+\dt → list tables
+
+\i file.sql → run SQL script
+
+SELECT * FROM table; → view data
+
+EXEC sp_columns 'dbo.table' → inspect columns
+
+EXEC sp_help 'dbo.table' → show schema
+
+run via: sqlcmd -S localhost:3307 -d dbname
