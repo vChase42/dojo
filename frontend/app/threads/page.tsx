@@ -6,12 +6,9 @@ import Link from "next/link";
 import {
   getThreadsByGroup,
   createThread,
-} from "../services/threadService";
-import { Thread } from "../types";
+} from "../services/threadsService";
+import { Pagination, Thread } from "../types";
 
-/**
- * Minimal local helper replacing old idFromIri
- */
 function idFromIri(iri: string): string | null {
   if (!iri) return null;
 
@@ -27,35 +24,47 @@ function idFromIri(iri: string): string | null {
 
 export default function ThreadsPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [page, setPage] = useState(1);
+  const limit = 50;
+
   const groupIri = "https://localhost/u/default";
 
-  async function loadThreads() {
+  async function loadThreads(nextPage = page) {
     setLoading(true);
-    try {
-      const items = await getThreadsByGroup(groupIri);
-      setThreads(items);
 
+    try {
+      const result = await getThreadsByGroup({
+        groupIRI: groupIri,
+        page: nextPage,
+        limit,
+      });
+
+      setThreads(result.items);
+      setPagination(result.pagination);
+      setPage(nextPage);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadThreads();
+    loadThreads(1);
   }, []);
 
   async function handleCreateThread(e: React.FormEvent) {
     e.preventDefault();
+
     if (!title.trim()) return;
 
     try {
       setLoading(true);
       await createThread({ title, groupContext: groupIri });
       setTitle("");
-      await loadThreads();
+      await loadThreads(1);
     } catch (err) {
       console.error("Failed to create thread", err);
       setLoading(false);
@@ -66,7 +75,6 @@ export default function ThreadsPage() {
     <main style={{ padding: "2rem", maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ marginBottom: "1rem" }}>Threads</h1>
 
-      {/* Create Thread Form */}
       <form
         onSubmit={handleCreateThread}
         style={{
@@ -83,6 +91,7 @@ export default function ThreadsPage() {
           onChange={(e) => setTitle(e.target.value)}
           style={{ flex: 1, padding: "0.4rem" }}
         />
+
         <button
           type="submit"
           disabled={loading}
@@ -92,7 +101,6 @@ export default function ThreadsPage() {
         </button>
       </form>
 
-      {/* Table Wrapper */}
       <div style={{ position: "relative", minHeight: 120 }}>
         {!loading && threads.length === 0 && (
           <p>No threads yet.</p>
@@ -119,35 +127,68 @@ export default function ThreadsPage() {
                 </th>
               </tr>
             </thead>
+
             <tbody>
-              {threads.map((thread) => (
-                <tr key={thread.id}>
-                  <td style={{ padding: "6px 0" }}>
-                    <Link
-                      href={`/threads/${idFromIri(thread.id)}`}
-                      style={{ textDecoration: "none" }}
-                    >
-                      {thread.title}
-                    </Link>
-                  </td>
-                  <td style={{ padding: "6px 0", color: "#666" }}>
-                    {thread.creatorIri ?? "unknown"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "6px 0",
-                      textAlign: "right",
-                    }}
-                  >
-                    {thread.replyCount ?? 0}
-                  </td>
-                </tr>
-              ))}
+              {threads.map((thread) => {
+                const threadSlug = idFromIri(thread.id);
+
+                return (
+                  <tr key={thread.id}>
+                    <td style={{ padding: "6px 0" }}>
+                      <Link
+                        href={`/threads/${threadSlug}`}
+                        style={{ textDecoration: "none" }}
+                      >
+                        {thread.title}
+                      </Link>
+                    </td>
+
+                    <td style={{ padding: "6px 0", color: "#666" }}>
+                      {thread.creatorIri ?? "unknown"}
+                    </td>
+
+                    <td style={{ padding: "6px 0", textAlign: "right" }}>
+                      {thread.replyCount ?? 0}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
 
-        {/* Loading Overlay */}
+        {pagination && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "1rem",
+              fontFamily: "monospace",
+            }}
+          >
+            <button
+              type="button"
+              disabled={loading || !pagination.hasPreviousPage}
+              onClick={() => loadThreads(page - 1)}
+            >
+              Previous
+            </button>
+
+            <span>
+              Page {pagination.page} of {pagination.totalPages || 1}
+            </span>
+
+            <button
+              type="button"
+              disabled={loading || !pagination.hasNextPage}
+              onClick={() => loadThreads(page + 1)}
+            >
+              Next
+            </button>
+          </div>
+        )}
+
         {loading && (
           <div
             style={{

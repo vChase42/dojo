@@ -74,6 +74,14 @@ POSTS
   transition: background 120ms ease, border-color 120ms ease;
 }
 
+.thread-indent {
+  position: relative;
+  margin-left: 24px;
+  padding-left: 36px;
+
+  border-left: 1px solid var(--border-soft);
+}
+
 .post:hover {
   background: var(--panel-hover);
   border-color: var(--accent);
@@ -103,6 +111,11 @@ POSTS
   font-size: 14px;
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.post-highlighted {
+  background: rgba(255, 230, 80, 0.);
+  box-shadow: 0 0 0 1px rgba(255, 230, 80, 0.35);
 }
 
 /* =========================
@@ -142,11 +155,6 @@ button:active {
   margin-top: 6px;
 }
 
-.thread-indent {
-  margin-left: 24px;
-  padding-left: 12px;
-  border-left: 1px solid var(--border-soft);
-}
 
 /* =========================
    TEXTAREAS / FORMS

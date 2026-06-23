@@ -4,6 +4,7 @@ import {
   Thread,
   Post,
   ThreadWithPosts,
+  ThreadsResponse,
 } from "@/app/types";
 
 const API_BASE = "/api";
@@ -33,37 +34,45 @@ async function apiFetch<T>(
  * THREADS
  */
 
-export async function getThreadsByGroup(
-  groupIRI: string
-): Promise<Thread[]> {
-  const qs = new URLSearchParams({ groupIRI });
-  const data = await apiFetch<{ ok: boolean; items: Thread[] }>(
-    `/threads?${qs.toString()}`
-  );
+export async function getThreadsByGroup(params: {
+  groupIRI: string;
+  page?: number;
+  limit?: number;
+}): Promise<ThreadsResponse> {
+  const qs = new URLSearchParams({
+    groupIRI: params.groupIRI,
+    page: String(params.page ?? 1),
+  });
 
-  return data.items ?? [];
-}
-
-  export async function getThread(params: {
-    threadId: string;
-    page: number;
-    limit?: number;
-  }): Promise<ThreadWithPosts> {
-    const qs = new URLSearchParams({
-      page: String(params.page),
-    });
-
-    if (params.limit !== undefined) {
-      qs.set("limit", String(params.limit));
-    }
-
-    return apiFetch<ThreadWithPosts>(
-      `/thread/${encodeURIComponent(params.threadId)}?${qs.toString()}`
-    );
+  if (params.limit !== undefined) {
+    qs.set("limit", String(params.limit));
   }
 
+  return apiFetch<ThreadsResponse>(
+    `/threads?${qs.toString()}`
+  );
+}
+
+export async function getThread(params: {
+  threadId: string;
+  page?: number;
+  limit?: number;
+}): Promise<ThreadWithPosts> {
+  const qs = new URLSearchParams({
+    page: String(params.page ?? 1),
+  });
+
+  if (params.limit !== undefined) {
+    qs.set("limit", String(params.limit));
+  }
+
+  return apiFetch<ThreadWithPosts>(
+    `/thread/${encodeURIComponent(params.threadId)}?${qs.toString()}`
+  );
+}
+
 /**
- * Create a new thread (root post).
+ * Create a new thread/root post.
  */
 export async function createThread(params: {
   title: string;

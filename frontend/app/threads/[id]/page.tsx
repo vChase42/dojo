@@ -1,19 +1,66 @@
+// app/threads/[id]/page.tsx
 "use client";
+
 import "./thread.css";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   getThread,
   createPost,
-} from "../../services/threadService";
+} from "../../services/threadsService";
 import { buildPostTree } from "../../services/utils";
-import type { PostTreeNode } from "@/app/types";
+import type { Post, Thread } from "@/app/types";
 import { useMe } from "@/app/hooks/me";
-import { Post, Thread } from "@/app/types";
+import { PostRow } from "./components/PostRow";
+import { ReplyBox } from "./components/ReplyBox";
 
-type ReplyState = {
-  [postId: string]: boolean;
-};
+function threadIdFromParam(id: string): string {
+  return id.startsWith("http")
+    ? id
+    : `https://localhost/o/${id}`;
+}
+
+function makeLocalPost(params: {
+  id: string;
+  threadId: string;
+  parentId: string | null;
+  authorIri: string;
+  content: string;
+}): Post {
+  const now = new Date().toISOString();
+
+  return {
+    id: params.id,
+    threadId: params.threadId,
+    parentId: params.parentId,
+
+    authorIri: params.authorIri,
+    content: params.content,
+
+    replyCount: 0,
+    revisionCount: 1,
+
+    upvotes: 0,
+    downvotes: 0,
+    score: 0,
+
+    isDeleted: false,
+
+    moderationStatus: "visible",
+    deletedReason: null,
+    deletedBy: null,
+    deletedAt: null,
+
+    viewerVote: 0,
+
+    canEdit: true,
+    canDelete: true,
+    canVote: false,
+
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 export default function ThreadPage() {
   const { data: user } = useMe();
@@ -25,12 +72,14 @@ export default function ThreadPage() {
       : Array.isArray(params.id)
       ? params.id[0]
       : null;
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [thread, setThread] = useState<Thread | null>(null);
-  const [replyOpen, setReplyOpen] = useState<ReplyState>({});
   const [rootText, setRootText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [highlightedPostId, setHighlightedPostId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     if (!shortId) return;
@@ -42,10 +91,10 @@ export default function ThreadPage() {
     setError(false);
 
     try {
-      const threadId = id.startsWith("http")
-        ? id
-        : `https://localhost/o/${id}`;
-      const data = await getThread({threadId, page: 1});
+      const data = await getThread({
+        threadId: threadIdFromParam(id),
+        page: 1,
+      });
 
       setThread(data.thread ?? null);
       setPosts(data.posts ?? []);
@@ -58,40 +107,44 @@ export default function ThreadPage() {
   }
 
   const rootPost = useMemo(
-    () => posts.find((p) => p.id === thread?.id),
+    () => posts.find((post) => post.id === thread?.id) ?? null,
     [posts, thread]
   );
 
   const commentPosts = useMemo(
-    () => posts.filter((p) => p.parentId !== null),
+    () => posts.filter((post) => post.parentId !== null),
     [posts]
   );
 
-  function appendPostLocally(newPost: Post) {
-    setPosts((prev) => [...prev, newPost]);
+  const tree = useMemo(
+    () => buildPostTree(commentPosts),
+    [commentPosts]
+  );
+
+  function appendPostLocally(post: Post) {
+    setPosts((prev) => [...prev, post]);
   }
 
   async function submitThreadReply() {
     if (!rootText.trim() || !rootPost || !thread || !user) return;
 
+    const content = rootText.trim();
+
     const result = await createPost({
-      content: rootText,
+      content,
       inReplyTo: rootPost.id,
       context: thread.groupIri,
     });
 
-    appendPostLocally({
-      id: result.noteId,
-      threadId: thread.id,
-      parentId: rootPost.id,
-      authorIri: user.actorId,
-      content: rootText,
-      replyCount: 0,
-      upvotes: 0,
-      downvotes: 0,
-      isDeleted: false,
-      createdAt: new Date().toISOString(),
-    });
+    appendPostLocally(
+      makeLocalPost({
+        id: result.noteId,
+        threadId: thread.id,
+        parentId: rootPost.id,
+        authorIri: user.actorId,
+        content,
+      })
+    );
 
     setRootText("");
   }
@@ -99,101 +152,27 @@ export default function ThreadPage() {
   async function submitReply(parentId: string, text: string) {
     if (!text.trim() || !thread || !user) return;
 
+    const content = text.trim();
+
     const result = await createPost({
-      content: text,
+      content,
       inReplyTo: parentId,
       context: thread.groupIri,
     });
 
-    appendPostLocally({
-      id: result.noteId,
-      threadId: thread.id,
-      parentId,
-      authorIri: user.actorId,
-      content: text,
-      replyCount: 0,
-      upvotes: 0,
-      downvotes: 0,
-      isDeleted: false,
-      createdAt: new Date().toISOString(),
-    });
-
-    setReplyOpen((r) => ({ ...r, [parentId]: false }));
-  }
-
-  function PostRow({
-    post,
-    depth = 0,
-  }: {
-    post: PostTreeNode;
-    depth?: number;
-  }) {
-    const [text, setText] = useState("");
-
-    return (
-      <>
-        <div className="post" style={{ marginLeft: depth * 24 }}>
-          <div className="post-meta">
-            <div className="post-author">
-              {post.authorIri ?? "unknown"}
-            </div>
-            <div className="post-date">
-              {new Date(post.createdAt).toLocaleString()}
-            </div>
-          </div>
-
-          <div className="post-content">
-            {post.content}
-            <div className="post-actions">
-              <button
-                onClick={() =>
-                  setReplyOpen((r) => ({
-                    ...r,
-                    [post.id]: !r[post.id],
-                  }))
-                }
-              >
-                reply
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {replyOpen[post.id] && (
-          <div
-            className="reply-box"
-            style={{ marginLeft: depth * 24 + 160 }}
-          >
-            <textarea
-              rows={3}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <button onClick={() => submitReply(post.id, text)}>
-              post reply
-            </button>
-          </div>
-        )}
-
-        {post.children.length > 0 && (
-          <div className="thread-indent">
-            {post.children.map((child) => (
-              <PostRow
-                key={child.id}
-                post={child}
-                depth={depth + 1}
-              />
-            ))}
-          </div>
-        )}
-      </>
+    appendPostLocally(
+      makeLocalPost({
+        id: result.noteId,
+        threadId: thread.id,
+        parentId,
+        authorIri: user.actorId,
+        content,
+      })
     );
   }
 
   if (loading) return <div>Loading…</div>;
   if (error) return <div>Thread not found.</div>;
-
-  const tree = buildPostTree(commentPosts);
 
   return (
     <main className="forum">
@@ -201,24 +180,35 @@ export default function ThreadPage() {
         <h1 style={{ display: "inline", marginRight: "0.75rem" }}>
           {rootPost?.content ?? thread?.title ?? "Thread"}
         </h1>
+
         <span style={{ color: "#9aa4b2", fontSize: "0.9rem" }}>
-          {rootPost?.authorIri ?? "unknown"}
+          {rootPost?.authorIri ?? thread?.creatorIri ?? "unknown"}
         </span>
       </div>
 
       <div className="thread-surface">
         {tree.map((post) => (
-          <PostRow key={post.id} post={post} />
+          <PostRow
+            key={post.id}
+            post={post}
+            maxIndentDepth={6}
+            onReply={submitReply}
+            onHoverPost={setHighlightedPostId}
+            highlightedPostId={highlightedPostId}
+          />
         ))}
 
         <div className="root-reply">
           <h3>Reply</h3>
-          <textarea
+
+          <ReplyBox
             rows={5}
             value={rootText}
-            onChange={(e) => setRootText(e.target.value)}
+            onChange={setRootText}
+            onSubmit={submitThreadReply}
+            buttonText="Post"
+            disabled={!user}
           />
-          <button onClick={submitThreadReply}>Post</button>
         </div>
       </div>
     </main>

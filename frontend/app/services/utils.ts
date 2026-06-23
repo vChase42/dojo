@@ -3,75 +3,74 @@
 import { Post, PostTreeNode } from "@/app/types";
 
 /**
- * Build nested tree structure from flat Post[]
- * Uses parentId instead of inReplyTo.
+ * Build nested tree structure from flat Post[].
+ * Uses parentId instead of ActivityPub inReplyTo.
  */
 export function buildPostTree(posts: Post[]): PostTreeNode[] {
-  const map: Record<string, PostTreeNode> = {};
+  const byId = new Map<string, PostTreeNode>();
   const roots: PostTreeNode[] = [];
 
-  // Initialize map
   for (const post of posts) {
-    map[post.id] = {
+    byId.set(post.id, {
       ...post,
       children: [],
-    };
+    });
   }
 
-  // Link children → parents
   for (const post of posts) {
-    if (post.parentId && map[post.parentId]) {
-      map[post.parentId].children.push(map[post.id]);
+    const node = byId.get(post.id);
+    if (!node) continue;
+
+    const parent = post.parentId
+      ? byId.get(post.parentId)
+      : null;
+
+    if (parent) {
+      parent.children.push(node);
     } else {
-      roots.push(map[post.id]);
+      roots.push(node);
     }
   }
 
-  sortRecursively(roots);
-
+  sortPostTree(roots);
   return roots;
 }
 
 /**
- * Recursively sort by createdAt (oldest first).
+ * Recursively sort tree nodes by createdAt, oldest first.
  */
-function sortRecursively(nodes: PostTreeNode[]) {
-  nodes.sort((a, b) => {
-    return (
+export function sortPostTree(nodes: PostTreeNode[]): void {
+  nodes.sort(
+    (a, b) =>
       new Date(a.createdAt).getTime() -
       new Date(b.createdAt).getTime()
-    );
-  });
+  );
 
   for (const node of nodes) {
-    sortRecursively(node.children);
+    sortPostTree(node.children);
   }
 }
 
 /**
- * Optional: flatten a tree back into array (depth-first)
+ * Flatten a tree back into a depth-first list.
  */
 export function flattenPostTree(
   nodes: PostTreeNode[]
 ): PostTreeNode[] {
   const result: PostTreeNode[] = [];
 
-  function walk(list: PostTreeNode[]) {
-    for (const node of list) {
-      result.push(node);
-      if (node.children.length > 0) {
-        walk(node.children);
-      }
-    }
+  for (const node of nodes) {
+    result.push(node);
+    result.push(...flattenPostTree(node.children));
   }
 
-  walk(nodes);
   return result;
 }
 
 /**
- * Optional: compute net score
+ * Prefer post.score from the API, but keep this helper
+ * for optimistic UI updates.
  */
 export function postScore(post: Post): number {
-  return post.upvotes - post.downvotes;
+  return post.score;
 }
