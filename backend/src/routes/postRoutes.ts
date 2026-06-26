@@ -22,7 +22,7 @@ export function postRoutes(
   ms: MongoService,
 ) {
   const router = Router();
-  const replyController = PostController(ap,ps,ts);
+  const postController = PostController(ap,ps,ts);
   const threadController = ThreadController(ap,ts,ps);
   const groupController = GroupController(ap);
   /**
@@ -45,7 +45,7 @@ export function postRoutes(
   router.post(
     "/post",
     requireAuth(auth, users),
-    replyController.createPost
+    postController.createPost
   );
 
 
@@ -55,8 +55,16 @@ export function postRoutes(
     requireAuth(auth, users),
     groupController.createGroup
   )
-
-
+  router.post(
+    "/deletepost",
+    requireAuth(auth, users),
+    postController.deletePost
+  );
+  router.post(
+    "/votepost",
+    requireAuth(auth, users),
+    postController.votePost
+  );
 
   return router;
 }

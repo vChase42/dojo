@@ -49,6 +49,7 @@ export function requireAuth(
       req.userId = userId;
       req.user = user;
 
+
       return next();
     } catch (err) {
       console.error("Auth error:", err);

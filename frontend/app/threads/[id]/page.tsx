@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import {
   getThread,
   createPost,
+  deletePost,
 } from "../../services/threadsService";
 import { buildPostTree } from "../../services/utils";
 import type { Post, Thread } from "@/app/types";
@@ -171,6 +172,19 @@ export default function ThreadPage() {
     );
   }
 
+  async function deleteThreadPost(noteIri: string) {
+    const updatedPost = await deletePost({
+      noteIri,
+      reason: "User deleted post",
+    });
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === updatedPost.id ? updatedPost : post
+      )
+    );
+  }
+
   if (loading) return <div>Loading…</div>;
   if (error) return <div>Thread not found.</div>;
 
@@ -193,6 +207,8 @@ export default function ThreadPage() {
             post={post}
             maxIndentDepth={6}
             onReply={submitReply}
+            onEdit={() => {}}
+            onDelete={deleteThreadPost}
             onHoverPost={setHighlightedPostId}
             highlightedPostId={highlightedPostId}
           />

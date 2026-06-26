@@ -121,7 +121,7 @@ export function PostController(
         if (!threadId) {
           return res.status(400).json({ error: "threadId required" });
         }
-
+        
         const user = req.user as any;
         const viewerIri = user?.actorId ?? null;
 
@@ -157,6 +157,77 @@ export function PostController(
 
         return res.status(500).json({
           error: err.message || "Failed to fetch thread",
+        });
+      }
+    },
+
+    /**
+     * POST /api/deletepost
+     * Soft-delete a post
+     */
+    async deletePost(req: Request, res: Response) {
+      try {
+        const user = req.user as any;
+        const { noteIri, reason } = req.body;
+
+        if (!noteIri || typeof noteIri !== "string") {
+          return res.status(400).json({ error: "noteIri (string) required" });
+        }
+        console.log("this is reached");
+        const deletedPost = await ps.softDeletePost({
+          postId: noteIri,
+          deletedBy: user.actorId,
+          reason,
+        });
+
+        console.log(deletedPost);
+
+        return res.status(200).json({
+          ok: true,
+          post: deletedPost,
+        });
+      } catch (err: any) {
+        console.error("deletePost error:", err);
+
+        return res.status(500).json({
+          error: err.message || "Failed to delete post",
+        });
+      }
+    },
+    /**
+     * POST /api/votepost
+     * Vote, change vote, or clear vote
+     */
+    async votePost(req: Request, res: Response) {
+      try {
+        const user = req.user as any;
+        const { noteIri, value } = req.body;
+
+        if (!noteIri || typeof noteIri !== "string") {
+          return res.status(400).json({ error: "noteIri (string) required" });
+        }
+
+        if (![1, 0, -1].includes(value)) {
+          return res.status(400).json({
+            error: "value must be -1, 0, or 1",
+          });
+        }
+
+        const post = await ps.vote({
+          postId: noteIri,
+          userIri: user.actorId,
+          value,
+        });
+
+        return res.status(200).json({
+          ok: true,
+          post,
+        });
+      } catch (err: any) {
+        console.error("votePost error:", err);
+
+        return res.status(500).json({
+          error: err.message || "Failed to vote on post",
         });
       }
     },

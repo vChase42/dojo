@@ -6,8 +6,11 @@ import { PostsService } from "../services/postsService";
 import { ActivityPubService } from "../services/activitypubService";
 import { ThreadService } from "../services/threadService";
 import { PostController } from "../controllers/postController";
+import { optionalAuth } from "../middleware/optionalAuth";
+import { UserService } from "../services/userService";
+import { AuthService } from "../services/authService";
 
-export function publicRoutes(ap: ActivityPubService, ps: PostsService, ts: ThreadService) {
+export function publicRoutes(auth: AuthService, users: UserService ,ap: ActivityPubService, ps: PostsService, ts: ThreadService) {
   const router = Router();
   const threadController = ThreadController(ap, ts, ps);
   const postController = PostController(ap,ps,ts);
@@ -27,6 +30,7 @@ export function publicRoutes(ap: ActivityPubService, ps: PostsService, ts: Threa
   // Get a thread stats and list of all the relevant notes.
   router.get(
     "/thread/:threadId",
+    optionalAuth(auth,users),
     postController.getThreadPosts
   );
 

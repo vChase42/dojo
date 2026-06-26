@@ -10,8 +10,8 @@ export function mapPost(
     threadId: row.thread_id,
     parentId: row.parent_id,
 
-    authorIri: row.author_iri,
-    content: row.content,
+    authorIri: row.is_deleted ? "" : row.author_iri,
+    content: row.is_deleted ? "" : row.content,
 
     upvotes: row.upvotes,
     downvotes: row.downvotes,

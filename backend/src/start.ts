@@ -108,7 +108,7 @@ async function main() {
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
   app.use("/api", postRoutes(authService, userService, activityPubService,postsService, threadService,mongoService));
-  app.use("/api", publicRoutes(activityPubService,postsService,threadService));
+  app.use("/api", publicRoutes(authService, userService, activityPubService,postsService,threadService));
 
   // ----------------------------
   // 📌 Static files (optional)

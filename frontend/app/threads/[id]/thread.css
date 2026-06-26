@@ -106,12 +106,6 @@ POSTS
   color: var(--text-dim);
 }
 
-.post-content {
-  flex: 1;
-  font-size: 14px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-}
 
 .post-highlighted {
   background: rgba(255, 230, 80, 0.);
@@ -122,9 +116,6 @@ POSTS
    ACTIONS
    ========================= */
 
-.post-actions {
-  margin-top: 6px;
-}
 
 button {
   background: transparent;
@@ -229,4 +220,66 @@ textarea:focus {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #2a3442;
+}
+
+
+
+.post-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.post-menu-button {
+  border: none;
+  padding: 0 6px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.post-menu-panel {
+  position: absolute;
+  right: 0;
+  top: 24px;
+  z-index: 20;
+  min-width: 100px;
+  background: var(--panel-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.post-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.post-menu-item.danger {
+  color: var(--danger);
+}
+
+
+.post-content {
+  position: relative;
+  flex: 1;
+}
+
+.post-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.post-body {
+  margin-bottom: 6px;
+}
+
+.post-content {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }

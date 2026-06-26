@@ -126,3 +126,33 @@ export async function editPost(params: {
 
   return data.post;
 }
+
+export async function deletePost(params: {
+  noteIri: string;
+  reason?: string;
+}): Promise<Post> {
+  const data = await apiFetch<{ ok: boolean; post: Post }>(
+    `/deletepost`,
+    {
+      method: "POST",
+      body: JSON.stringify(params),
+    }
+  );
+
+  return data.post;
+}
+
+export async function votePost(params: {
+  noteIri: string;
+  value: -1 | 0 | 1;
+}): Promise<Post> {
+  const data = await apiFetch<{ ok: boolean; post: Post }>(
+    `/votepost`,
+    {
+      method: "POST",
+      body: JSON.stringify(params),
+    }
+  );
+
+  return data.post;
+}
