@@ -8,6 +8,8 @@ import {
   getThread,
   createPost,
   deletePost,
+  editPost,
+  votePost,
 } from "../../services/threadsService";
 import { buildPostTree } from "../../services/utils";
 import type { Post, Thread } from "@/app/types";
@@ -122,6 +124,14 @@ export default function ThreadPage() {
     [commentPosts]
   );
 
+  function replacePostLocally(updatedPost: Post) {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === updatedPost.id ? updatedPost : post
+      )
+    );
+  }
+
   function appendPostLocally(post: Post) {
     setPosts((prev) => [...prev, post]);
   }
@@ -172,17 +182,36 @@ export default function ThreadPage() {
     );
   }
 
+  async function editThreadPost(noteIri: string, content: string) {
+    const updatedPost = await editPost({
+      noteIri,
+      content,
+    });
+
+    replacePostLocally(updatedPost);
+  }
+
   async function deleteThreadPost(noteIri: string) {
     const updatedPost = await deletePost({
       noteIri,
       reason: "User deleted post",
     });
 
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === updatedPost.id ? updatedPost : post
-      )
-    );
+    replacePostLocally(updatedPost);
+  }
+
+  async function voteThreadPost(
+    noteIri: string,
+    currentVote: -1 | 0 | 1
+  ) {
+    const nextVote = currentVote === 1 ? 0 : 1;
+
+    const updatedPost = await votePost({
+      noteIri,
+      value: nextVote,
+    });
+
+    replacePostLocally(updatedPost);
   }
 
   if (loading) return <div>Loading…</div>;
@@ -192,7 +221,9 @@ export default function ThreadPage() {
     <main className="forum">
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ display: "inline", marginRight: "0.75rem" }}>
-          {rootPost?.content ?? thread?.title ?? "Thread"}
+          {rootPost?.isDeleted
+            ? "[deleted]"
+            : rootPost?.content ?? thread?.title ?? "Thread"}
         </h1>
 
         <span style={{ color: "#9aa4b2", fontSize: "0.9rem" }}>
@@ -207,8 +238,9 @@ export default function ThreadPage() {
             post={post}
             maxIndentDepth={6}
             onReply={submitReply}
-            onEdit={() => {}}
+            onEdit={editThreadPost}
             onDelete={deleteThreadPost}
+            onVote={voteThreadPost}
             onHoverPost={setHighlightedPostId}
             highlightedPostId={highlightedPostId}
           />

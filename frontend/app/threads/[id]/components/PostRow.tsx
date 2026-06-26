@@ -13,6 +13,7 @@ type PostRowProps = {
   onReply(parentId: string, text: string): Promise<void> | void;
   onEdit(postId: string, text: string): Promise<void> | void;
   onDelete(postId: string): Promise<void> | void;
+  onVote(postId: string, currentVote: -1 | 0 | 1): Promise<void> | void;
 
   onHoverPost?(postId: string | null): void;
   highlightedPostId?: string | null;
@@ -25,6 +26,7 @@ export function PostRow({
   onReply,
   onEdit,
   onDelete,
+  onVote,
   onHoverPost,
   highlightedPostId,
 }: PostRowProps) {
@@ -35,7 +37,6 @@ export function PostRow({
   const [editText, setEditText] = useState(post.content);
 
   const [submitting, setSubmitting] = useState(false);
-
   const isHighlighted = highlightedPostId === post.id;
 
   async function submitReply() {
@@ -72,6 +73,18 @@ export function PostRow({
     }
   }
 
+  async function submitVote() {
+    if (!post.canVote || post.isDeleted || submitting) return;
+
+    setSubmitting(true);
+
+    try {
+      await onVote(post.id, post.viewerVote);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function cancelEdit() {
     setEditing(false);
     setEditText(post.content);
@@ -88,7 +101,7 @@ export function PostRow({
       >
         <div className="post-meta">
           <div className="post-author">
-              {post.isDeleted ? <em>deleted</em> : post.authorIri}
+            {post.isDeleted ? <em>deleted</em> : post.authorIri}
           </div>
 
           <div className="post-date">
@@ -134,13 +147,32 @@ export function PostRow({
           <div className="post-actions">
             <span className="mr-2">score: {post.score}</span>
 
-            <button
-              type="button"
-              onClick={() => setReplyOpen((open) => !open)}
-              disabled={post.isDeleted}
-            >
-              reply
-            </button>
+            {!post.isDeleted && post.canVote && (
+              <span>
+                [
+                <a
+                  href="#"
+                  className="post-action-link"
+                  title={post.viewerVote === 1 ? "Remove vote" : "Upvote"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    submitVote();
+                  }}
+                >
+                  {post.viewerVote === 1 ? "-" : "+"}
+                </a>
+                ]
+              </span>
+            )}
+
+            {!post.isDeleted && (
+              <button
+                type="button"
+                onClick={() => setReplyOpen((open) => !open)}
+              >
+                reply
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -173,6 +205,7 @@ export function PostRow({
               onReply={onReply}
               onEdit={onEdit}
               onDelete={onDelete}
+              onVote={onVote}
               onHoverPost={onHoverPost}
               highlightedPostId={highlightedPostId}
             />

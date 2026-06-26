@@ -65,6 +65,11 @@ export function postRoutes(
     requireAuth(auth, users),
     postController.votePost
   );
+  router.post(
+    "/editpost",
+    requireAuth(auth,users),
+    postController.editPost
+  );
 
   return router;
 }

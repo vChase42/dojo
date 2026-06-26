@@ -283,3 +283,14 @@ textarea:focus {
   line-height: 1.55;
   white-space: pre-wrap;
 }
+
+
+.post-action-link {
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.post-action-link:hover {
+  color: var(--accent);
+}
