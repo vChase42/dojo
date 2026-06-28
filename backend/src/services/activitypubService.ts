@@ -139,6 +139,76 @@ export class ActivityPubService {
     };
   }
 
+  async updateNote(
+    actorId: string,
+    noteId: string,
+    content: string
+  ): Promise<{ activityId?: string }> {
+    const activity = {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      type: "Update",
+      actor: actorId,
+      object: {
+        id: noteId,
+        type: "Note",
+        content,
+      },
+    };
+
+    return this.submitActivity(actorId, activity, "Update Note");
+  }
+
+  async deleteNote(
+    actorId: string,
+    noteId: string
+  ): Promise<{ activityId?: string }> {
+    const activity = {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      type: "Delete",
+      actor: actorId,
+      object: noteId,
+    };
+
+    return this.submitActivity(actorId, activity, "Delete Note");
+  }
+
+  async likeObject(
+    actorId: string,
+    objectId: string
+  ): Promise<{ activityId?: string }> {
+    const activity = {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      type: "Like",
+      actor: actorId,
+      object: {
+        id: objectId,
+        type: "Note",
+      },
+    };
+
+    return this.submitActivity(actorId, activity, "Like");
+  }
+
+  async undoLike(
+    actorId: string,
+    likeActivityId: string | null
+  ): Promise<{ activityId?: string }> {
+    if (!likeActivityId) {
+      throw new Error("Cannot undo Like: missing activityId");
+    }
+
+    const activity = {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      type: "Undo",
+      actor: actorId,
+      object: likeActivityId,
+    };
+
+    return this.submitActivity(actorId, activity, "Undo Like");
+  }
+
+
+
   async getPost(id: string){
     return this.apex.store.getObject(id);
   }

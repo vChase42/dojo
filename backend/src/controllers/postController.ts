@@ -18,7 +18,6 @@ export function PostController(
     async createPost(req: Request, res: Response) {
       try {
         const user = req.user as any;
-
         const { content, context, inReplyTo, to, cc } = req.body;
 
         if (!content || typeof content !== "string") {
@@ -29,25 +28,18 @@ export function PostController(
           return res.status(400).json({ error: "context is required" });
         }
 
-        // 1️⃣ Create AP Note
-        const result = await ap.createNote(
-          user.actorId,
-          content,
-          context,
-          {
-            inReplyTo,
-            to,
-            cc,
-            published: new Date().toISOString(),
-          }
-        );
+        const result = await ap.createNote(user.actorId, content, context, {
+          inReplyTo,
+          to,
+          cc,
+          published: new Date().toISOString(),
+        });
 
         const noteId = result.noteId;
         if (!noteId) {
           throw new Error("Failed to obtain noteId from ActivityPub");
         }
 
-        // 2️⃣ Persist locally (threadId inferred internally)
         await ps.createPost({
           id: noteId,
           authorIri: user.actorId,
@@ -55,17 +47,12 @@ export function PostController(
           parentId: inReplyTo ?? null,
         });
 
-        // 3️⃣ If reply, bump thread aggregate count
         if (inReplyTo) {
-          // resolve via PostsService instead of ActivityPub
           const threadRoot = await ps.resolveThreadRoot(inReplyTo);
           await ts.incrementReplies(threadRoot);
         }
 
-        return res.status(201).json({
-          ok: true,
-          noteId,
-        });
+        return res.status(201).json({ ok: true, noteId });
       } catch (err: any) {
         console.error("createPost error:", err);
         return res
@@ -98,6 +85,8 @@ export function PostController(
           reason,
         });
 
+        await ap.updateNote(user.actorId, noteIri, content);
+
         return res.status(200).json({
           ok: true,
           post: updatedPost,
@@ -112,7 +101,7 @@ export function PostController(
 
     /**
      * GET /api/thread/:threadId
-     * Fetch all posts for a thread
+     * Fetch posts for a thread
      */
     async getThreadPosts(req: Request, res: Response) {
       try {
@@ -121,7 +110,7 @@ export function PostController(
         if (!threadId) {
           return res.status(400).json({ error: "threadId required" });
         }
-        
+
         const user = req.user as any;
         const viewerIri = user?.actorId ?? null;
 
@@ -173,14 +162,14 @@ export function PostController(
         if (!noteIri || typeof noteIri !== "string") {
           return res.status(400).json({ error: "noteIri (string) required" });
         }
-        console.log("this is reached");
+
         const deletedPost = await ps.softDeletePost({
           postId: noteIri,
           deletedBy: user.actorId,
           reason,
         });
 
-        console.log(deletedPost);
+        await ap.deleteNote(user.actorId, noteIri);
 
         return res.status(200).json({
           ok: true,
@@ -194,6 +183,7 @@ export function PostController(
         });
       }
     },
+
     /**
      * POST /api/votepost
      * Vote, change vote, or clear vote
@@ -213,10 +203,29 @@ export function PostController(
           });
         }
 
+        let activityId: string | null = null;
+
+        if (value === 1) {
+          const result = await ap.likeObject(user.actorId, noteIri);
+          activityId = result.activityId ?? null;
+        }
+
+        if (value === 0) {
+          const likeActivityId = await ps.getVoteActivityId(
+            noteIri,
+            user.actorId
+          );
+
+          if (likeActivityId) {
+            await ap.undoLike(user.actorId, likeActivityId);
+          }
+        }
+
         const post = await ps.vote({
           postId: noteIri,
           userIri: user.actorId,
           value,
+          activityId,
         });
 
         return res.status(200).json({

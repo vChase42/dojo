@@ -93,6 +93,11 @@ export class PostsService {
         user_iri TEXT NOT NULL,
         value SMALLINT NOT NULL CHECK (value IN (-1, 1)),
 
+        activity_id TEXT NULL,
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
         PRIMARY KEY (post_id, user_iri)
       );
     `);
@@ -244,6 +249,7 @@ export class PostsService {
     postId: string;
     userIri: string;
     value: -1 | 0 | 1;
+    activityId?: string | null;
   }): Promise<Post> {
     return this.votes.vote(params);
   }
@@ -253,6 +259,13 @@ export class PostsService {
     userIri: string
   ): Promise<-1 | 0 | 1> {
     return this.votes.getUserVote(postId, userIri);
+  }
+
+  async getVoteActivityId(
+    postId: string,
+    userIri: string
+  ): Promise<string | null> {
+    return this.votes.getVoteActivityId(postId, userIri);
   }
 
   // ------------------------------------------------

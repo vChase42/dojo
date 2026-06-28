@@ -12,6 +12,7 @@ export class PostVotesService {
     postId: string;
     userIri: string;
     value: -1 | 0 | 1;
+    activityId?: string | null;
   }): Promise<Post> {
     const client = await this.pg.connect();
 
@@ -19,13 +20,19 @@ export class PostVotesService {
       await client.query("BEGIN");
 
       const existing = await client.query(
-        `SELECT value FROM post_votes WHERE post_id = $1 AND user_iri = $2`,
+        `SELECT value, activity_id
+         FROM post_votes
+         WHERE post_id = $1 AND user_iri = $2`,
         [params.postId, params.userIri]
       );
 
       const oldValue = existing.rowCount
         ? Number(existing.rows[0].value)
         : 0;
+
+      const oldActivityId = existing.rowCount
+        ? existing.rows[0].activity_id
+        : null;
 
       const newValue = params.value;
 
@@ -36,25 +43,36 @@ export class PostVotesService {
 
       if (newValue === 0) {
         await client.query(
-          `DELETE FROM post_votes WHERE post_id = $1 AND user_iri = $2`,
+          `DELETE FROM post_votes
+           WHERE post_id = $1 AND user_iri = $2`,
           [params.postId, params.userIri]
         );
       } else if (oldValue === 0) {
         await client.query(
-          `
-          INSERT INTO post_votes (post_id, user_iri, value)
-          VALUES ($1, $2, $3)
-          `,
-          [params.postId, params.userIri, newValue]
+          `INSERT INTO post_votes
+           (post_id, user_iri, value, activity_id)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            params.postId,
+            params.userIri,
+            newValue,
+            params.activityId ?? null,
+          ]
         );
       } else {
         await client.query(
-          `
-          UPDATE post_votes
-          SET value = $3
-          WHERE post_id = $1 AND user_iri = $2
-          `,
-          [params.postId, params.userIri, newValue]
+          `UPDATE post_votes
+           SET value = $3,
+               activity_id = $4,
+               updated_at = NOW()
+           WHERE post_id = $1
+             AND user_iri = $2`,
+          [
+            params.postId,
+            params.userIri,
+            newValue,
+            params.activityId ?? oldActivityId,
+          ]
         );
       }
 
@@ -67,19 +85,15 @@ export class PostVotesService {
         (oldValue === -1 ? 1 : 0);
 
       await client.query(
-        `
-        UPDATE posts
-        SET
-          upvotes = upvotes + $2,
-          downvotes = downvotes + $3,
-          updated_at = NOW()
-        WHERE id = $1
-        `,
+        `UPDATE posts
+         SET upvotes = upvotes + $2,
+             downvotes = downvotes + $3,
+             updated_at = NOW()
+         WHERE id = $1`,
         [params.postId, upvoteDelta, downvoteDelta]
       );
 
       await client.query("COMMIT");
-
       return this.getPostOrThrow(params.postId, params.userIri);
     } catch (err) {
       await client.query("ROLLBACK");
@@ -94,13 +108,30 @@ export class PostVotesService {
     userIri: string
   ): Promise<-1 | 0 | 1> {
     const res = await this.pg.query(
-      `SELECT value FROM post_votes WHERE post_id = $1 AND user_iri = $2`,
+      `SELECT value
+       FROM post_votes
+       WHERE post_id = $1 AND user_iri = $2`,
       [postId, userIri]
     );
 
     if (!res.rowCount) return 0;
-
     return Number(res.rows[0].value) as -1 | 1;
+  }
+
+  async getVoteActivityId(
+    postId: string,
+    userIri: string
+  ): Promise<string | null> {
+    const res = await this.pg.query(
+      `SELECT activity_id
+       FROM post_votes
+       WHERE post_id = $1 AND user_iri = $2`,
+      [postId, userIri]
+    );
+
+    return res.rowCount
+      ? res.rows[0].activity_id
+      : null;
   }
 
   private async getPostOrThrow(
