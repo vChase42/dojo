@@ -176,17 +176,24 @@ export class ActivityPubService {
     actorId: string,
     objectId: string
   ): Promise<{ activityId?: string }> {
-    const activity = {
-      "@context": "https://www.w3.org/ns/activitystreams",
-      type: "Like",
-      actor: actorId,
-      object: {
-        id: objectId,
-        type: "Note",
-      },
-    };
+    const actor = await this.apex.store.getObject(actorId, true);
 
-    return this.submitActivity(actorId, activity, "Like");
+    if (!actor) {
+      throw new Error(`Actor not found: ${actorId}`);
+    }
+
+    const activity = await this.apex.buildActivity(
+      "Like",
+      actorId,
+      ["https://www.w3.org/ns/activitystreams#Public"],
+      { object: objectId }
+    );
+
+    await this.apex.addToOutbox(actor, activity);
+
+    return {
+      activityId: activity.id,
+    };
   }
 
   async undoLike(

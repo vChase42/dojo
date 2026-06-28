@@ -8,8 +8,8 @@
     "dev": "nodemon src/start.ts"
   },
   "dependencies": {
+    "activitypub-express": "file:./packages/activitypub-express",
     "@small-tech/auto-encrypt": "^4.3.0",
-    "activitypub-express": "^4.4.2",
     "bcrypt": "^6.0.0",
     "connect-history-api-fallback": "^2.0.0",
     "cookie-parser": "^1.4.7",
