@@ -60,43 +60,6 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
 
   apex.store.db = db;
   await apex.store.setup();
-  // Keep original method with correct `this`
-  const originalSaveObject = apex.store.saveObject.bind(apex.store);
-
-  // Monkey-patch saveObject
-  apex.store.saveObject = async function (object: any, actor?: any, isLocal?: boolean) {
-    await enrichStoredObject(object, actor);
-    const result = await originalSaveObject(object, actor, isLocal);
-    return result;
-  };
-
-  async function enrichStoredObject(object: any, actor?: any) {
-    if (!object || object.type !== "Note") return;
-    
-    const inReplyTo =
-      Array.isArray(object.inReplyTo)
-        ? object.inReplyTo[0]
-        : object.inReplyTo;
-
-    // Root post
-    if (!inReplyTo) {
-      object._local = {
-        threadRoot: object.id,
-        depth: 0,
-      };
-      return;
-    }
-
-    // Reply: inherit from parent
-    const parent = await apex.store.getObject(inReplyTo);
-    if (!parent) return;
-
-    object._local = {
-      threadRoot: parent._local?.threadRoot ?? parent.id,
-      depth: (parent._local?.depth ?? 0) + 1,
-    };
-  }
-
 
   app.use(
     express.json({ type: apex.consts.jsonldTypes }),

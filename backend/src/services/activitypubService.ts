@@ -90,110 +90,54 @@ export class ActivityPubService {
   }
 
 
-  async createNote(actorId: string,content: string, context: string, options: { inReplyTo?: string;  to?: string[];  cc?: string[];  published?: string;}
+  async createNote(
+    actorId: string,
+    content: string,
+    context: string,
+    options: {
+      inReplyTo?: string;
+      to?: string[];
+      cc?: string[];
+      published?: string;
+    }
   ): Promise<{ noteId: string; activityId?: string }> {
-    const { inReplyTo,  to,  cc,  published,} = options;
-
     if (!context) {
       throw new Error("context is required to create a post");
     }
-
-    const outboxUrl = `${actorId}/outbox`;
 
     const note: any = {
       "@context": "https://www.w3.org/ns/activitystreams",
       type: "Note",
       attributedTo: actorId,
       content,
-      context: context,
-      to: to?.length ? to : ["https://www.w3.org/ns/activitystreams#Public"],
+      context,
+      to: options.to?.length
+        ? options.to
+        : ["https://www.w3.org/ns/activitystreams#Public"],
     };
 
-    if (cc?.length) {
-      note.cc = cc;
-    }
+    if (options.cc?.length) note.cc = options.cc;
+    if (options.inReplyTo) note.inReplyTo = options.inReplyTo;
+    if (options.published) note.published = options.published;
 
-    if (inReplyTo) {
-      note.inReplyTo = inReplyTo;
-    }
+    const { activityId } = await this.submitActivity(
+      actorId,
+      note,
+      "Create Note"
+    );
 
-    if (published) {
-      note.published = published;
-    }
-
-    const response = await fetch(outboxUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/activity+json",
-        "Authorization": `Bearer ${process.env.ADMIN_SECRET}`,
-      },
-      body: JSON.stringify(note),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Outbox rejected post: ${errText}`);
-    }
-
-    const activityId = response.headers.get("location") ?? undefined;
     const activity = activityId
       ? await this.apex.store.getActivity(activityId)
       : null;
-    
-    const noteId =
-      activity?.object?.[0]?.id ??
-      activity?.object?.id ??
-      undefined;    
+
     return {
-      noteId: noteId ?? "",
+      noteId:
+        activity?.object?.[0]?.id ??
+        activity?.object?.id ??
+        "",
       activityId,
-   };
+    };
   }
-
-  async getCollection(idOrIri: string) {
-    const iri = idOrIri.startsWith("http")
-      ? idOrIri
-      : `https://${this.apex.domain}/t/${idOrIri}`;
-
-    return this.apex.store.getObject(iri);
-  }
-
-
-
-async addNoteToOrderedCollection(
-  actorId: string,
-  threadIri: string,
-  noteIri: string
-) {
-  const outboxUrl = `${actorId}/outbox`;
-
-  const addActivity = {
-    "@context": "https://www.w3.org/ns/activitystreams",
-    type: "Add",
-    attributedTo: actorId,
-    object: noteIri,
-    target: threadIri,
-    to: ["https://www.w3.org/ns/activitystreams#Public"],
-  };
-
-  const response = await fetch(outboxUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/activity+json",
-      "Authorization": `Bearer ${process.env.ADMIN_SECRET}`,
-    },
-    body: JSON.stringify(addActivity),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Outbox rejected Add: ${errText}`);
-  }
-
-  const activityId = response.headers.get("location") ?? undefined;
-
-  return { activityId };
-}
 
   async getPost(id: string){
     return this.apex.store.getObject(id);
@@ -211,12 +155,30 @@ async addNoteToOrderedCollection(
     return await this.apex.store.getObject(actorId);
   }
 
-  async resolveThreadRoot(inReplyTo: string){
-    // Reply: inherit from parent
-    const parent = await this.apex.store.getObject(inReplyTo);
-    if (!parent) return;
-    return parent._local?.threadRoot ?? parent.id;
+  private async submitActivity(
+    actorId: string,
+    activity: any,
+    errorLabel = "Activity"
+  ): Promise<{ activityId?: string }> {
+    const response = await fetch(`${actorId}/outbox`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/activity+json",
+        Authorization: `Bearer ${process.env.ADMIN_SECRET}`,
+      },
+      body: JSON.stringify(activity),
+    });
 
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Outbox rejected ${errorLabel}: ${errText}`);
+    }
+
+    return {
+      activityId: response.headers.get("location") ?? undefined,
+    };
   }
+
+
 
 }
