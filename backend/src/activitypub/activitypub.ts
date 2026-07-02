@@ -167,47 +167,6 @@ export async function setupActivityPub(app: Application, env: APEnv, db: any) {
       next();
     }
   );
-  /** Apply local Add activities to thread collections */
-// app.on("apex-outbox" as any, async ({ actor, activity }: any) => {
-
-//   if (activity.type !== "Create") return;
-
-//   const inner = activity.object?.[0];
-//   if (!inner || inner.type?.toLowerCase() !== "add") return;
-
-//   const target =
-//     inner.target?.[0] ??
-//     inner.target;
-
-//   const object =
-//     inner.object?.[0] ??
-//     inner.object;
-
-//   if (
-//     typeof target !== "string" ||
-//     !target.startsWith(`https://${DOMAIN}/t/`)
-//   ) {
-//     return;
-//   }
-
-//   const noteIri =
-//     typeof object === "string"
-//       ? object
-//       : object.id;
-
-//   if (!noteIri) return;
-
-//   const thread = await apex.store.getObject(target);
-//   if (!thread || thread.type !== "OrderedCollection") return;
-
-//   thread.orderedItems = thread.orderedItems || [];
-
-//   if (!thread.orderedItems.includes(noteIri)) {
-//     thread.orderedItems.unshift(noteIri);
-//     thread.totalItems = (thread.totalItems || 0) + 1;
-//     await apex.store.updateObject(thread, inner.attributedTo, true);
-//   }
-// });
 
 
   /** Auto accept follows & auto announce */

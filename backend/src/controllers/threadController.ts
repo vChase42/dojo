@@ -1,15 +1,12 @@
 // src/controllers/threadController.ts
 
 import { Request, Response } from "express";
-import { ActivityPubService } from "../services/activitypubService";
+import { ForumService } from "../services/forumService";
 import { ThreadService } from "../services/threadService";
-import { PostsService } from "../services/postsService";
-import { Thread } from "../types";
 
 export function ThreadController(
-  ap: ActivityPubService,
-  ts: ThreadService,
-  ps: PostsService
+  forum: ForumService,
+  ts: ThreadService
 ) {
   return {
     /**
@@ -22,39 +19,21 @@ export function ThreadController(
         const { title, groupContext: groupIri } = req.body;
 
         if (!groupIri || typeof groupIri !== "string") {
-          return res.status(400).json({ error: "groupContext is required" });
+          return res.status(400).json({
+            error: "groupContext is required",
+          });
         }
 
         if (!title || typeof title !== "string") {
-          return res.status(400).json({ error: "title is required" });
+          return res.status(400).json({
+            error: "title is required",
+          });
         }
 
-        // 1️⃣ Create AP root note
-        const { noteId } = await ap.createNote(
-          user.actorId,
+        const { noteId } = await forum.createThread({
+          actorIri: user.actorId,
           title,
           groupIri,
-          { to: [groupIri] }
-        );
-
-        if (!noteId) {
-          throw new Error("Failed to obtain noteId from ActivityPub");
-        }
-
-        // 2️⃣ Create thread row
-        await ts.createThread({
-          groupIri,
-          rootNoteIri: noteId,
-          title,
-          creatorIri: user.actorId,
-        });
-
-        // 3️⃣ Create root post row
-        await ps.createPost({
-          id: noteId,
-          authorIri: user.actorId,
-          content: title,
-          parentId: null,
         });
 
         return res.status(201).json({
@@ -63,9 +42,10 @@ export function ThreadController(
         });
       } catch (err: any) {
         console.error("createThread error:", err);
-        return res
-          .status(500)
-          .json({ error: err.message || "Failed to create thread" });
+
+        return res.status(500).json({
+          error: err.message || "Failed to create thread",
+        });
       }
     },
 
@@ -78,13 +58,16 @@ export function ThreadController(
         const { groupIRI } = req.query;
 
         if (!groupIRI || typeof groupIRI !== "string") {
-          return res
-            .status(400)
-            .json({ error: "groupIRI is required and must be string" });
+          return res.status(400).json({
+            error: "groupIRI is required and must be string",
+          });
         }
 
         const page = Math.max(Number(req.query.page ?? 1), 1);
-        const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 100);
+        const limit = Math.min(
+          Math.max(Number(req.query.limit ?? 50), 1),
+          100
+        );
         const offset = (page - 1) * limit;
 
         const result = await ts.listByGroup({
@@ -102,13 +85,17 @@ export function ThreadController(
             offset: result.offset,
             total: result.total,
             totalPages: Math.ceil(result.total / result.limit),
-            hasNextPage: result.offset + result.items.length < result.total,
+            hasNextPage:
+              result.offset + result.items.length < result.total,
             hasPreviousPage: page > 1,
           },
         });
       } catch (err: any) {
         console.error("getThreads error:", err);
-        return res.status(500).json({ error: "Failed to fetch threads" });
+
+        return res.status(500).json({
+          error: "Failed to fetch threads",
+        });
       }
     },
 
@@ -120,23 +107,28 @@ export function ThreadController(
         const { threadIri } = req.query;
 
         if (!threadIri || typeof threadIri !== "string") {
-          return res
-            .status(400)
-            .json({ error: "threadIri is required and must be string" });
+          return res.status(400).json({
+            error: "threadIri is required and must be string",
+          });
         }
 
         const thread = await ts.getByRootNote(threadIri);
 
         if (!thread) {
-          return res
-            .status(404)
-            .json({ error: `No thread found for ${threadIri}` });
+          return res.status(404).json({
+            error: `No thread found for ${threadIri}`,
+          });
         }
 
-        return res.json({ thread });
+        return res.json({
+          thread,
+        });
       } catch (err: any) {
         console.error("getThreadStats error:", err);
-        return res.status(500).json({ error: "Failed to fetch thread stats" });
+
+        return res.status(500).json({
+          error: "Failed to fetch thread stats",
+        });
       }
     },
   };

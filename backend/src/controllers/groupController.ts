@@ -1,5 +1,9 @@
 // src/controllers/groupController.ts
 
+
+//i should rename this to admin controller. because this is not a user end thing, this is for the admin dashboard
+
+
 import { Request, Response } from "express";
 import { ActivityPubService } from "../services/activitypubService";
 

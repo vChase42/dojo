@@ -122,90 +122,93 @@ export class PostsService {
   // Creation
   // ------------------------------------------------
 
-  async createPost(params: {
-    id: string;
-    authorIri: string;
-    content: string;
-    parentId?: string | null;
-    publishedAt?: Date;
-  }): Promise<Post> {
-    const client = await this.pg.connect();
+async createPost(params: {
+  id: string;
+  threadId?: string;
+  authorIri: string;
+  content: string;
+  parentId?: string | null;
+  publishedAt?: Date;
+}): Promise<Post> {
+  const client = await this.pg.connect();
 
-    try {
-      await client.query("BEGIN");
+  try {
+    await client.query("BEGIN");
 
-      let threadId = params.id;
+    let threadId = params.threadId ?? params.id;
 
-      if (params.parentId) {
-        const parent = await client.query(
-          `SELECT thread_id FROM posts WHERE id = $1`,
-          [params.parentId]
-        );
+    if (!params.threadId && params.parentId) {
+      const parent = await client.query(
+        `SELECT thread_id FROM posts WHERE id = $1`,
+        [params.parentId]
+      );
 
-        if (!parent.rowCount) {
-          throw new Error("Parent post not found");
-        }
-
-        threadId = parent.rows[0].thread_id;
-
-        await client.query(
-          `
-          UPDATE posts
-          SET
-            reply_count = reply_count + 1,
-            updated_at = NOW()
-          WHERE id = $1
-          `,
-          [params.parentId]
-        );
+      if (!parent.rowCount) {
+        throw new Error("Parent post not found");
       }
 
-      await client.query(
-        `
-        INSERT INTO posts (
-          id,
-          thread_id,
-          author_iri,
-          parent_id,
-          content,
-          created_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $6)
-        `,
-        [
-          params.id,
-          threadId,
-          params.authorIri,
-          params.parentId ?? null,
-          params.content,
-          params.publishedAt ?? new Date(),
-        ]
-      );
-
-      await client.query(
-        `
-        INSERT INTO post_revisions (
-          post_id,
-          revision_number,
-          editor_iri,
-          content
-        )
-        VALUES ($1, 1, $2, $3)
-        `,
-        [params.id, params.authorIri, params.content]
-      );
-
-      await client.query("COMMIT");
-
-      return this.getPostOrThrow(params.id, params.authorIri);
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
+      threadId = parent.rows[0].thread_id;
     }
+
+    if (params.parentId) {
+      await client.query(
+        `
+        UPDATE posts
+        SET
+          reply_count = reply_count + 1,
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [params.parentId]
+      );
+    }
+
+    await client.query(
+      `
+      INSERT INTO posts (
+        id,
+        thread_id,
+        author_iri,
+        parent_id,
+        content,
+        created_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $6)
+      `,
+      [
+        params.id,
+        threadId,
+        params.authorIri,
+        params.parentId ?? null,
+        params.content,
+        params.publishedAt ?? new Date(),
+      ]
+    );
+
+    await client.query(
+      `
+      INSERT INTO post_revisions (
+        post_id,
+        revision_number,
+        editor_iri,
+        content
+      )
+      VALUES ($1, 1, $2, $3)
+      `,
+      [params.id, params.authorIri, params.content]
+    );
+
+    await client.query("COMMIT");
+
+    return this.getPostOrThrow(params.id, params.authorIri);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
+}
 
   // ------------------------------------------------
   // Reads

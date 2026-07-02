@@ -1,12 +1,12 @@
-// src/controllers/replyController.ts
+// src/controllers/postController.ts
 
 import { Request, Response } from "express";
-import { ActivityPubService } from "../services/activitypubService";
+import { ForumService } from "../services/forumService";
 import { PostsService } from "../services/postsService";
 import { ThreadService } from "../services/threadService";
 
 export function PostController(
-  ap: ActivityPubService,
+  forum: ForumService,
   ps: PostsService,
   ts: ThreadService
 ) {
@@ -28,36 +28,20 @@ export function PostController(
           return res.status(400).json({ error: "context is required" });
         }
 
-        const result = await ap.createNote(user.actorId, content, context, {
+        const { noteId } = await forum.createPost({
+          actorIri: user.actorId,
+          content,
+          context,
           inReplyTo,
           to,
           cc,
           published: new Date().toISOString(),
         });
 
-        const noteId = result.noteId;
-        if (!noteId) {
-          throw new Error("Failed to obtain noteId from ActivityPub");
-        }
-
-        await ps.createPost({
-          id: noteId,
-          authorIri: user.actorId,
-          content,
-          parentId: inReplyTo ?? null,
-        });
-
-        if (inReplyTo) {
-          const threadRoot = await ps.resolveThreadRoot(inReplyTo);
-          await ts.incrementReplies(threadRoot);
-        }
-
         return res.status(201).json({ ok: true, noteId });
       } catch (err: any) {
         console.error("createPost error:", err);
-        return res
-          .status(500)
-          .json({ error: err.message || "Failed to create post" });
+        return res.status(500).json({ error: err.message || "Failed to create post" });
       }
     },
 
@@ -78,24 +62,17 @@ export function PostController(
           return res.status(400).json({ error: "content (string) is required" });
         }
 
-        const updatedPost = await ps.editPost({
-          postId: noteIri,
-          editorIri: user.actorId,
-          newContent: content,
+        const post = await forum.editPost({
+          actorIri: user.actorId,
+          noteIri,
+          content,
           reason,
         });
 
-        await ap.updateNote(user.actorId, noteIri, content);
-
-        return res.status(200).json({
-          ok: true,
-          post: updatedPost,
-        });
+        return res.status(200).json({ ok: true, post });
       } catch (err: any) {
         console.error("editPost error:", err);
-        return res
-          .status(500)
-          .json({ error: err.message || "Failed to edit post" });
+        return res.status(500).json({ error: err.message || "Failed to edit post" });
       }
     },
 
@@ -143,10 +120,7 @@ export function PostController(
         });
       } catch (err: any) {
         console.error("getThreadPosts error:", err);
-
-        return res.status(500).json({
-          error: err.message || "Failed to fetch thread",
-        });
+        return res.status(500).json({ error: err.message || "Failed to fetch thread" });
       }
     },
 
@@ -163,24 +137,16 @@ export function PostController(
           return res.status(400).json({ error: "noteIri (string) required" });
         }
 
-        const deletedPost = await ps.softDeletePost({
-          postId: noteIri,
-          deletedBy: user.actorId,
+        const post = await forum.deletePost({
+          actorIri: user.actorId,
+          noteIri,
           reason,
         });
 
-        await ap.deleteNote(user.actorId, noteIri);
-
-        return res.status(200).json({
-          ok: true,
-          post: deletedPost,
-        });
+        return res.status(200).json({ ok: true, post });
       } catch (err: any) {
         console.error("deletePost error:", err);
-
-        return res.status(500).json({
-          error: err.message || "Failed to delete post",
-        });
+        return res.status(500).json({ error: err.message || "Failed to delete post" });
       }
     },
 
@@ -198,46 +164,19 @@ export function PostController(
         }
 
         if (![1, 0, -1].includes(value)) {
-          return res.status(400).json({
-            error: "value must be -1, 0, or 1",
-          });
+          return res.status(400).json({ error: "value must be -1, 0, or 1" });
         }
 
-        let activityId: string | null = null;
-
-        if (value === 1) {
-          const result = await ap.likeObject(user.actorId, noteIri);
-          activityId = result.activityId ?? null;
-        }
-
-        if (value === 0) {
-          const likeActivityId = await ps.getVoteActivityId(
-            noteIri,
-            user.actorId
-          );
-
-          if (likeActivityId) {
-            await ap.undoLike(user.actorId, likeActivityId);
-          }
-        }
-
-        const post = await ps.vote({
-          postId: noteIri,
-          userIri: user.actorId,
+        const post = await forum.votePost({
+          actorIri: user.actorId,
+          noteIri,
           value,
-          activityId,
         });
 
-        return res.status(200).json({
-          ok: true,
-          post,
-        });
+        return res.status(200).json({ ok: true, post });
       } catch (err: any) {
         console.error("votePost error:", err);
-
-        return res.status(500).json({
-          error: err.message || "Failed to vote on post",
-        });
+        return res.status(500).json({ error: err.message || "Failed to vote on post" });
       }
     },
   };

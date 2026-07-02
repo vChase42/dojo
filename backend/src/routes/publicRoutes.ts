@@ -9,11 +9,12 @@ import { PostController } from "../controllers/postController";
 import { optionalAuth } from "../middleware/optionalAuth";
 import { UserService } from "../services/userService";
 import { AuthService } from "../services/authService";
+import { ForumService } from "../services/forumService";
 
-export function publicRoutes(auth: AuthService, users: UserService ,ap: ActivityPubService, ps: PostsService, ts: ThreadService) {
+export function publicRoutes(auth: AuthService, users: UserService ,ap: ActivityPubService, ps: PostsService, ts: ThreadService, fs: ForumService) {
   const router = Router();
-  const threadController = ThreadController(ap, ts, ps);
-  const postController = PostController(ap,ps,ts);
+  const threadController = ThreadController(fs, ts);
+  const postController = PostController(fs,ps,ts);
 
   // List all threads (local, forum index)
   router.get(

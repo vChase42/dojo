@@ -10,8 +10,7 @@ import { ThreadService } from "../services/threadService";
 import { PostController } from "../controllers/postController";
 import { ThreadController } from "../controllers/threadController";
 import { GroupController } from "../controllers/groupController";
-import { MongoService } from "../services/mongoService";
-import { group } from "node:console";
+import { ForumService } from "../services/forumService";
 
 export function postRoutes(
   auth: AuthService,
@@ -19,11 +18,11 @@ export function postRoutes(
   ap: ActivityPubService,
   ps: PostsService,
   ts: ThreadService,
-  ms: MongoService,
+  fs: ForumService,
 ) {
   const router = Router();
-  const postController = PostController(ap,ps,ts);
-  const threadController = ThreadController(ap,ts,ps);
+  const postController = PostController(fs,ps,ts);
+  const threadController = ThreadController(fs,ts);
   const groupController = GroupController(ap);
   /**
    * Threads

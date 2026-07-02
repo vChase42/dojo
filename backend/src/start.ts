@@ -24,7 +24,7 @@ import { setupActivityPub } from "./activitypub/activitypub";
 import type { APEnv } from "./activitypub/activitypub";
 import { PostsService } from "./services/postsService";
 import { ThreadService } from "./services/threadService";
-import { MongoService } from "./services/mongoService";
+import { ForumService } from "./services/forumService";
 
 
 async function main() {
@@ -96,10 +96,10 @@ async function main() {
   // 📌 Instantiate Services
   // ----------------------------
   const authService = new AuthService(mdb);
-  const mongoService = new MongoService(mdb);
   const activityPubService = new ActivityPubService(apex, mdb);
   const postsService = new PostsService(pgPool);
   const threadService = new ThreadService(pgPool);
+  const forumService = new ForumService(activityPubService,postsService,threadService);
   const userService = new UserService(mdb);    //update this to utilize pg pls. 
   
   
@@ -107,8 +107,8 @@ async function main() {
   // 📌 Mount Routes
   // ----------------------------
   app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService,postsService, threadService,mongoService));
-  app.use("/api", publicRoutes(authService, userService, activityPubService,postsService,threadService));
+  app.use("/api", postRoutes(authService, userService, activityPubService,postsService, threadService,forumService));
+  app.use("/api", publicRoutes(authService, userService, activityPubService,postsService,threadService,forumService));
 
   // ----------------------------
   // 📌 Static files (optional)
