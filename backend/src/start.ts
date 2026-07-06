@@ -99,6 +99,9 @@ async function main() {
   const activityPubService = new ActivityPubService(apex, mdb);
   const postsService = new PostsService(pgPool);
   const threadService = new ThreadService(pgPool);
+  await postsService.initialize();
+  await threadService.initialize();
+
   const forumService = new ForumService(activityPubService,postsService,threadService);
   const userService = new UserService(mdb);    //update this to utilize pg pls. 
   

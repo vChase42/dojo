@@ -4,9 +4,7 @@ import { Pool } from "pg";
 import { Thread } from "../types";
 
 export class ThreadService {
-  constructor(private pg: Pool) {
-    this.initialize();
-  }
+  constructor(private pg: Pool) {}
 
   // ------------------------------------------------
   // Initialization

@@ -14,14 +14,12 @@ export class PostsService {
   private revisions: PostRevisionsService;
   private moderation: PostModerationService;
 
-  constructor(private pg: Pool) {
-    this.reads = new PostReadService(pg);
-    this.votes = new PostVotesService(pg, this.reads);
-    this.revisions = new PostRevisionsService(pg, this.reads);
-    this.moderation = new PostModerationService(pg, this.reads);
-
-    this.initialize();
-  }
+constructor(private pg: Pool) {
+  this.reads = new PostReadService(pg);
+  this.votes = new PostVotesService(pg, this.reads);
+  this.revisions = new PostRevisionsService(pg, this.reads);
+  this.moderation = new PostModerationService(pg, this.reads);
+}
 
   // ------------------------------------------------
   // Initialization

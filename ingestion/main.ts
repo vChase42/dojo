@@ -1,6 +1,8 @@
 // ingestion/main.ts
 
 import { RedditCorpus } from "./reddit";
+import { DojoAdapter } from "./dojo";
+
 
 async function main() {
   const corpus = new RedditCorpus({
@@ -165,7 +167,36 @@ async function main() {
 
       break;
     }
+    case "import-thread": {
+      if (args.length < 2) {
+        throw new Error(
+          "Usage: import-thread <submissionId> <groupName>"
+        );
+      }
 
+      const [submissionId, groupName] = args;
+
+      const thread = await corpus.getThread(submissionId);
+
+      if (!thread) {
+        console.log("Thread not found.");
+        break;
+      }
+
+      const dojo = new DojoAdapter();
+
+      try {
+        console.log("Initializing Dojo...");
+
+        await dojo.initialize();
+
+        await dojo.importThread(thread, groupName);
+      } finally {
+        await dojo.close();
+      }
+
+      break;
+    }
     case "random": {
       const submission = corpus.randomSubmission();
 
@@ -203,6 +234,8 @@ json thread <submissionId>
 json comment <commentId>
 
 search <query>
+
+import-thread <submissionId> <groupName>
 
 random
 `);

@@ -18,9 +18,15 @@ import { PostRow } from "./components/PostRow";
 import { ReplyBox } from "./components/ReplyBox";
 
 function threadIdFromParam(id: string): string {
-  return id.startsWith("http")
-    ? id
-    : `https://localhost/o/${id}`;
+  id = decodeURIComponent(id);
+  if (
+    id.startsWith("http") ||
+    id.startsWith("reddit:")
+  ) {
+    return id;
+  }
+
+  return `https://localhost/o/${id}`;
 }
 
 function makeLocalPost(params: {
