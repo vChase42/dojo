@@ -189,8 +189,7 @@ textarea:focus {
    ========================= */
 
 .root-reply {
-  margin-top: 32px;
-  padding-top: 16px;
+  margin-top: 24px;
   border-top: 1px solid var(--border);
   margin-bottom: 32px;
 }

@@ -12,10 +12,11 @@ import {
   votePost,
 } from "../../services/threadsService";
 import { buildPostTree } from "../../services/utils";
-import type { Post, Thread } from "@/app/types";
+import type { Pagination, Post, Thread } from "@/app/types";
 import { useMe } from "@/app/hooks/me";
 import { PostRow } from "./components/PostRow";
 import { ReplyBox } from "./components/ReplyBox";
+import { PaginationControls } from "@/app/components/PaginationControls";
 
 function threadIdFromParam(id: string): string {
   id = decodeURIComponent(id);
@@ -89,31 +90,44 @@ export default function ThreadPage() {
   const [error, setError] = useState(false);
   const [highlightedPostId, setHighlightedPostId] =
     useState<string | null>(null);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+
+  const [page, setPage] = useState(1);
+
+  const limit = 50;
+
 
   useEffect(() => {
     if (!shortId) return;
     load(shortId);
   }, [shortId]);
 
-  async function load(id: string) {
-    setLoading(true);
-    setError(false);
+async function load(
+  id: string,
+  nextPage = page
+) {
+  setLoading(true);
+  setError(false);
 
-    try {
-      const data = await getThread({
-        threadId: threadIdFromParam(id),
-        page: 1,
-      });
+  try {
+    const data = await getThread({
+      threadId: threadIdFromParam(id),
+      page: nextPage,
+      limit,
+    });
 
-      setThread(data.thread ?? null);
-      setPosts(data.posts ?? []);
-    } catch (err) {
-      console.error("Failed to load thread", err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+    setThread(data.thread ?? null);
+    setPosts(data.posts ?? []);
+
+    setPagination(data.pagination);
+    setPage(nextPage);
+  } catch (err) {
+    console.error("Failed to load thread", err);
+    setError(true);
+  } finally {
+    setLoading(false);
   }
+}
 
   const rootPost = useMemo(
     () => posts.find((post) => post.id === thread?.id) ?? null,
@@ -220,7 +234,7 @@ export default function ThreadPage() {
     replacePostLocally(updatedPost);
   }
 
-  if (loading) return <div>Loading…</div>;
+  if (posts.length === 0 && loading) return <div>Loading…</div>;
   if (error) return <div>Thread not found.</div>;
 
   return (
@@ -238,6 +252,15 @@ export default function ThreadPage() {
       </div>
 
       <div className="thread-surface">
+        <PaginationControls
+          pagination={pagination}
+          loading={loading}
+          onPage={(page) => {
+            if (!shortId) return;
+            load(shortId, page);
+          }}
+        />
+        <div className="mb-2"></div>
         {tree.map((post) => (
           <PostRow
             key={post.id}
@@ -253,6 +276,14 @@ export default function ThreadPage() {
         ))}
 
         <div className="root-reply">
+          <PaginationControls
+            pagination={pagination}
+            loading={loading}
+            onPage={(page) => {
+              if (!shortId) return;
+              load(shortId, page);
+            }}
+          />
           <h3>Reply</h3>
 
           <ReplyBox

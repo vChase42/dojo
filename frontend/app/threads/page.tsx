@@ -7,7 +7,8 @@ import {
   getThreadsByGroup,
   createThread,
 } from "../services/threadsService";
-import { Pagination, Thread } from "../types";
+import { Thread, Pagination } from "../types";
+import { PaginationControls } from "../components/PaginationControls";
 
 function idFromIri(iri: string): string | null {
   if (!iri) return null;
@@ -157,37 +158,11 @@ export default function ThreadsPage() {
           </table>
         )}
 
-        {pagination && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "1rem",
-              fontFamily: "monospace",
-            }}
-          >
-            <button
-              type="button"
-              disabled={loading || !pagination.hasPreviousPage}
-              onClick={() => loadThreads(page - 1)}
-            >
-              Previous
-            </button>
-
-            <span>
-              Page {pagination.page} of {pagination.totalPages || 1}
-            </span>
-
-            <button
-              type="button"
-              disabled={loading || !pagination.hasNextPage}
-              onClick={() => loadThreads(page + 1)}
-            >
-              Next
-            </button>
-          </div>
-        )}
+        <PaginationControls
+          pagination={pagination}
+          loading={loading}
+          onPage={loadThreads}
+        />
 
         {loading && (
           <div
