@@ -26,6 +26,12 @@ import { PostsService } from "./services/postsService";
 import { ThreadService } from "./services/threadService";
 import { ForumService } from "./services/forumService";
 
+// CONVERSATION
+import { ThreadSnapshotService } from "./conversation/core/threadSnapshotService";
+import { ObservationRepository } from "./conversation/persistence/observationRepository";
+import { AnalysisEngine } from "./conversation/engine/analysisEngine";
+import { StructuralAnalyzer } from "./conversation/analyzers/structuralAnalyzer";
+
 
 async function main() {
   console.log("🚀 Starting backend…");
@@ -104,8 +110,46 @@ async function main() {
 
   const forumService = new ForumService(activityPubService,postsService,threadService);
   const userService = new UserService(mdb);    //update this to utilize pg pls. 
+  const observationRepository = new ObservationRepository(pgPool);
+
+  await observationRepository.initialize();
+
+  const threadSnapshotService =new ThreadSnapshotService(threadService,postsService);
+
+  const analysisEngine =new AnalysisEngine(threadSnapshotService,observationRepository);
+
+  const structuralAnalyzer = new StructuralAnalyzer();
   
-  
+app.post(
+  "/api/dev/analyze",
+  async (req, res) => {
+    try {
+      const { threadId } = req.body;
+
+      if (!threadId || typeof threadId !== "string") {
+        return res.status(400).json({
+          error: "threadId required",
+        });
+      }
+      const result = await analysisEngine.run({
+        threadId,
+
+        analyzers: [
+          structuralAnalyzer,
+        ],
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error(err);
+
+      res.status(500).json({
+        error: err.message,
+      });
+    }
+  }
+);
+
   // ----------------------------
   // 📌 Mount Routes
   // ----------------------------

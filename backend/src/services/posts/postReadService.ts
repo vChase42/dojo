@@ -39,7 +39,7 @@ export class PostReadService {
     limit: number;
     offset: number;
   }> {
-    const limit = Math.min(params.limit ?? 50, 100);
+    const limit = params.limit ?? 50;
     const offset = Math.max(params.offset ?? 0, 0);
 
     const totalRes = await this.pg.query(

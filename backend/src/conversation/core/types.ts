@@ -3,7 +3,6 @@
 import { Post, Thread } from "../../types";
 
 export interface ConversationEdge {
-  id: string;
   parentId: string;
   childId: string;
 }
@@ -97,4 +96,31 @@ export interface Ranker {
   version: string;
 
   rank(context: RankingContext): Promise<RankingResult>;
+}
+
+
+export interface AnalyzerRunSummary {
+  analyzerId: string;
+  analyzerVersion: string;
+  observationCount: number;
+  durationMs: number;
+}
+
+export interface AnalysisRunResult {
+  threadId: string;
+
+  observations: Observation[];
+
+  summary: {
+    analyzerCount: number;
+    observationCount: number;
+
+    subjects: Partial<
+      Record<ObservationSubjectType, number>
+    >;
+
+    analyzers: AnalyzerRunSummary[];
+
+    durationMs: number;
+  };
 }
