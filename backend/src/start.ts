@@ -1,6 +1,4 @@
 import "dotenv/config";
-import express from "express";
-import cors from "cors";
 import http from "http";
 import https from "https";
 import fs from "fs";
@@ -8,34 +6,11 @@ import path from "path";
 import { Db, MongoClient } from "mongodb";
 import { Pool } from "pg";
 import { onShutdown } from "node-graceful-shutdown";
-import cookieParser from "cookie-parser";
-// SERVICES
-import { AuthService } from "./services/authService";
-import { UserService } from "./services/userService";
-import { ActivityPubService } from "./services/activitypubService";
 
-// ROUTES
-import { authRoutes } from "./routes/authRoutes";
-import { postRoutes } from "./routes/postRoutes";
-import { publicRoutes } from "./routes/publicRoutes";
-
-// AP SERVER
-import { setupActivityPub } from "./activitypub/activitypub";
-import type { APEnv } from "./activitypub/activitypub";
-import { PostsService } from "./services/postsService";
-import { ThreadService } from "./services/threadService";
-import { ForumService } from "./services/forumService";
-
-// CONVERSATION
-import { ThreadSnapshotService } from "./conversation/core/threadSnapshotService";
-import { ObservationRepository } from "./conversation/persistence/observationRepository";
-import { AnalysisEngine } from "./conversation/engine/analysisEngine";
-import { StructuralAnalyzer } from "./conversation/analyzers/structuralAnalyzer";
-
+import { createApplication } from "./bootstrap/application";
 
 async function main() {
   console.log("🚀 Starting backend…");
-
 
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -48,30 +23,29 @@ async function main() {
     CERT_PATH,
     CA_PATH,
     PORT_HTTP,
-    PORT_HTTPS
+    PORT_HTTPS,
   } = process.env;
 
   if (!DB_URL || !DB_NAME) {
     throw new Error("DB_URL and DB_NAME must be set in .env");
   }
 
-  // ----------------------------
-  // 📌 Connect MongoDB
-  // ----------------------------
+  // ---------------------------------------------------------------------------
+  // MongoDB
+  // ---------------------------------------------------------------------------
 
-  const { client, db: mdb } = await connectWithRetry({
+  const { client, db } = await connectWithRetry({
     url: DB_URL,
     dbName: DB_NAME,
     retries: 3,
     delayMs: 5000,
   });
 
-  
-  
-  // ----------------------------
-  // 📌 Connect Postgres
-  // ----------------------------
-  const pgPool = new Pool({
+  // ---------------------------------------------------------------------------
+  // Postgres
+  // ---------------------------------------------------------------------------
+
+  const pg = new Pool({
     host: process.env.PG_HOST || "localhost",
     port: Number(process.env.PG_PORT) || 5432,
     user: process.env.PG_USER || "dojo",
@@ -79,123 +53,66 @@ async function main() {
     database: process.env.PG_DB || "dojo",
   });
 
-  await pgPool.query("SELECT 1"); // sanity check
+  await pg.query("SELECT 1");
+
   console.log("✅ [Postgres] Connected successfully");
 
-  
-  // ----------------------------
-  // 📌 Setup Express app
-  // ----------------------------
-  const app = express();
-  
-  app.use(cookieParser());
-  app.use(express.json());
+  // ---------------------------------------------------------------------------
+  // Application
+  // ---------------------------------------------------------------------------
 
-  // ----------------------------
-  // 📌 Setup ActivityPub (apex)
-  // ----------------------------
-  console.log("📡 Initializing ActivityPub…");
-  
-  const apex = await setupActivityPub(app, process.env as unknown as APEnv, mdb);
-  
-  // ----------------------------
-  // 📌 Instantiate Services
-  // ----------------------------
-  const authService = new AuthService(mdb);
-  const activityPubService = new ActivityPubService(apex, mdb);
-  const postsService = new PostsService(pgPool);
-  const threadService = new ThreadService(pgPool);
-  await postsService.initialize();
-  await threadService.initialize();
+  console.log("📡 Initializing application…");
 
-  const forumService = new ForumService(activityPubService,postsService,threadService);
-  const userService = new UserService(mdb);    //update this to utilize pg pls. 
-  const observationRepository = new ObservationRepository(pgPool);
+  const { app } = await createApplication(db, pg);
 
-  await observationRepository.initialize();
+  // ---------------------------------------------------------------------------
+  // HTTP / HTTPS
+  // ---------------------------------------------------------------------------
 
-  const threadSnapshotService =new ThreadSnapshotService(threadService,postsService);
-
-  const analysisEngine =new AnalysisEngine(threadSnapshotService,observationRepository);
-
-  const structuralAnalyzer = new StructuralAnalyzer();
-  
-app.post(
-  "/api/dev/analyze",
-  async (req, res) => {
-    try {
-      const { threadId } = req.body;
-
-      if (!threadId || typeof threadId !== "string") {
-        return res.status(400).json({
-          error: "threadId required",
-        });
-      }
-      const result = await analysisEngine.run({
-        threadId,
-
-        analyzers: [
-          structuralAnalyzer,
-        ],
-      });
-
-      res.json(result);
-    } catch (err: any) {
-      console.error(err);
-
-      res.status(500).json({
-        error: err.message,
-      });
-    }
-  }
-);
-
-  // ----------------------------
-  // 📌 Mount Routes
-  // ----------------------------
-  app.use("/api/auth", authRoutes(authService, userService,activityPubService));
-  app.use("/api", postRoutes(authService, userService, activityPubService,postsService, threadService,forumService));
-  app.use("/api", publicRoutes(authService, userService, activityPubService,postsService,threadService,forumService));
-
-  // ----------------------------
-  // 📌 Static files (optional)
-  // ----------------------------
-  app.use("/f", express.static("public/files"));
-
-  // ----------------------------
-  // 📌 Start HTTP or HTTPS server
-  // ----------------------------
   const useHttps = USE_HTTPS === "true";
+
   let server: http.Server | https.Server;
 
   if (useHttps) {
     console.log("🔐 HTTPS enabled");
 
-    const ssl = {
-      key: KEY_PATH && fs.readFileSync(path.join(process.cwd(), KEY_PATH)),
-      cert: CERT_PATH && fs.readFileSync(path.join(process.cwd(), CERT_PATH)),
-      ca: CA_PATH && fs.readFileSync(path.join(process.cwd(), CA_PATH))
-    };
-
-    server = https.createServer(ssl, app);
+    server = https.createServer(
+      {
+        key: KEY_PATH && fs.readFileSync(path.join(process.cwd(), KEY_PATH)),
+        cert: CERT_PATH && fs.readFileSync(path.join(process.cwd(), CERT_PATH)),
+        ca: CA_PATH && fs.readFileSync(path.join(process.cwd(), CA_PATH)),
+      },
+      app
+    );
   } else {
     console.log("🌐 HTTP enabled");
+
     server = http.createServer(app);
   }
 
-  const port = useHttps ? Number(PORT_HTTPS) : Number(PORT_HTTP) || 3000;
+  const port =
+    useHttps
+      ? Number(PORT_HTTPS)
+      : Number(PORT_HTTP) || 3000;
 
   server.listen(port, () => {
-    console.log(`✅ Server running on ${useHttps ? "https" : "http"}://${DOMAIN}:${port}`);
+    console.log(
+      `✅ Server running on ${useHttps ? "https" : "http"}://${DOMAIN}:${port}`
+    );
   });
 
-  // ----------------------------
-  // 📌 Graceful Shutdown
-  // ----------------------------
+  // ---------------------------------------------------------------------------
+  // Shutdown
+  // ---------------------------------------------------------------------------
+
   onShutdown(async () => {
     console.log("🔻 Shutting down backend…");
+
     await new Promise((resolve) => server.close(resolve));
+
+    await pg.end();
     await client.close();
+
     console.log("👋 Goodbye.");
   });
 }
@@ -229,25 +146,30 @@ export async function connectWithRetry({
     attempt++;
 
     console.log(
-      `🗄️  [MongoDB] Attempt ${attempt}/${retries} — connecting to ${url} ...`
+      `🗄️ [MongoDB] Attempt ${attempt}/${retries} — connecting to ${url}...`
     );
 
     try {
       const client = new MongoClient(url);
+
       await client.connect();
 
       console.log(
         `✅ [MongoDB] Connected successfully on attempt ${attempt}`
       );
 
-      const db = client.db(dbName);
-      return { client, db };
+      return {
+        client,
+        db: client.db(dbName),
+      };
     } catch (err: any) {
-      console.error(`❌ [MongoDB] Connection failed on attempt ${attempt}`);
+      console.error(
+        `❌ [MongoDB] Connection failed on attempt ${attempt}`
+      );
       console.error(`   Error: ${err.message}`);
 
       if (attempt >= retries) {
-        console.error("💥 [MongoDB] All retry attempts failed. Giving up.");
+        console.error("💥 [MongoDB] All retry attempts failed.");
         throw err;
       }
 
@@ -259,6 +181,5 @@ export async function connectWithRetry({
     }
   }
 
-  // Should never reach here, but TS requires a return or throw.
   throw new Error("Unexpected error in connectWithRetry()");
 }

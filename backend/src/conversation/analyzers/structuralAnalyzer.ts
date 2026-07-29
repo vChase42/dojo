@@ -5,100 +5,116 @@ import {
   Analyzer,
   AnalysisContext,
   Observation,
+  ObservationSubject,
 } from "../core/types";
 
 export class StructuralAnalyzer implements Analyzer {
   readonly id = "structural";
   readonly version = "0.1.0";
 
-  async analyze(
-    context: AnalysisContext
-  ): Promise<Observation[]> {
+  async analyze(context: AnalysisContext): Promise<Observation[]> {
     const { snapshot } = context;
+
     const observations: Observation[] = [];
     const computedAt = new Date();
 
-    const depthByPostId = this.computeDepths(context);
-    const descendantsByPostId = this.computeDescendantCounts(context);
+    const observe = <T extends Record<string, unknown>>(
+      subject: ObservationSubject,
+      type: string,
+      data: T
+    ) => {
+      observations.push({
+        subject,
+        type,
+        analyzerId: this.id,
+        analyzerVersion: this.version,
+        data,
+        computedAt,
+      });
+    };
+
+    const depthByPostId = this.computeDepths(snapshot);
+    const descendantsByPostId = this.computeDescendantCounts(snapshot);
 
     // Thread
-    observations.push({
-      subject: {
-        type: "thread",
-        id: snapshot.thread.id,
-      },
-      kind: "structure.thread",
-      analyzerId: this.id,
-      analyzerVersion: this.version,
-      data: {
+
+    observe(
+      { type: "thread", id: snapshot.thread.id },
+      "structure.thread.summary",
+      {
         postCount: snapshot.posts.length,
         edgeCount: snapshot.edges.length,
         participantCount: snapshot.participants.length,
         rootReplyCount:
           snapshot.childrenByParentId.get(snapshot.rootPost.id)?.length ?? 0,
         maxDepth: Math.max(0, ...depthByPostId.values()),
-      },
-      computedAt,
-    });
+      }
+    );
 
     // Posts
-    for (const post of snapshot.posts) {
-      const children =
-        snapshot.childrenByParentId.get(post.id) ?? [];
 
-      observations.push({
-        subject: {
-          type: "post",
-          id: post.id,
-        },
-        kind: "structure.post",
-        analyzerId: this.id,
-        analyzerVersion: this.version,
-        data: {
-          depth: depthByPostId.get(post.id) ?? 0,
-          directReplyCount: children.length,
-          descendantCount:
-            descendantsByPostId.get(post.id) ?? 0,
-          isLeaf: children.length === 0,
-          isRoot: post.id === snapshot.rootPost.id,
-        },
-        computedAt,
-      });
+    for (const post of snapshot.posts) {
+      const children = snapshot.childrenByParentId.get(post.id) ?? [];
+
+      observe(
+        { type: "post", id: post.id },
+        "structure.post.depth",
+        { depth: depthByPostId.get(post.id) ?? 0 }
+      );
+
+      observe(
+        { type: "post", id: post.id },
+        "structure.post.direct-replies",
+        { count: children.length }
+      );
+
+      observe(
+        { type: "post", id: post.id },
+        "structure.post.descendants",
+        { count: descendantsByPostId.get(post.id) ?? 0 }
+      );
+
+      observe(
+        { type: "post", id: post.id },
+        "structure.post.leaf",
+        { value: children.length === 0 }
+      );
+
+      observe(
+        { type: "post", id: post.id },
+        "structure.post.root",
+        { value: post.id === snapshot.rootPost.id }
+      );
     }
 
     // Edges
+
     for (const edge of snapshot.edges) {
       const parent = snapshot.postsById.get(edge.parentId);
       const child = snapshot.postsById.get(edge.childId);
 
       if (!parent || !child) continue;
 
-      observations.push({
-        subject: {
-          type: "edge",
-          id: this.edgeId(edge.parentId, edge.childId),
-        },
-        kind: "structure.edge",
-        analyzerId: this.id,
-        analyzerVersion: this.version,
-        data: {
+      observe(
+        { type: "edge", id: this.edgeId(edge.parentId, edge.childId) },
+        "structure.edge.summary",
+        {
           parentId: edge.parentId,
           childId: edge.childId,
           parentDepth: depthByPostId.get(parent.id) ?? 0,
           childDepth: depthByPostId.get(child.id) ?? 0,
           sameAuthor: parent.authorIri === child.authorIri,
           responseTimeMs:
-            child.createdAt.getTime() -
-            parent.createdAt.getTime(),
-        },
-        computedAt,
-      });
+            child.createdAt.getTime() - parent.createdAt.getTime(),
+        }
+      );
     }
 
     // Participants
-    for (const participantIri of snapshot.participants) {
+
+    for (const participant of snapshot.participants) {
       const authoredPosts = snapshot.posts.filter(
-        (post) => post.authorIri === participantIri
+        (post) => post.authorIri === participant
       );
 
       const repliedTo = new Set<string>();
@@ -107,13 +123,9 @@ export class StructuralAnalyzer implements Analyzer {
       for (const post of authoredPosts) {
         if (!post.parentId) continue;
 
-        const parent =
-          snapshot.postsById.get(post.parentId);
+        const parent = snapshot.postsById.get(post.parentId);
 
-        if (
-          parent &&
-          parent.authorIri !== participantIri
-        ) {
+        if (parent && parent.authorIri !== participant) {
           repliedTo.add(parent.authorIri);
         }
       }
@@ -121,26 +133,20 @@ export class StructuralAnalyzer implements Analyzer {
       for (const post of snapshot.posts) {
         if (!post.parentId) continue;
 
-        const parent =
-          snapshot.postsById.get(post.parentId);
+        const parent = snapshot.postsById.get(post.parentId);
 
         if (
-          parent?.authorIri === participantIri &&
-          post.authorIri !== participantIri
+          parent?.authorIri === participant &&
+          post.authorIri !== participant
         ) {
           repliedToBy.add(post.authorIri);
         }
       }
 
-      observations.push({
-        subject: {
-          type: "participant",
-          id: participantIri,
-        },
-        kind: "structure.participant",
-        analyzerId: this.id,
-        analyzerVersion: this.version,
-        data: {
+      observe(
+        { type: "participant", id: participant },
+        "structure.participant.summary",
+        {
           postCount: authoredPosts.length,
           postShare:
             snapshot.posts.length === 0
@@ -148,18 +154,16 @@ export class StructuralAnalyzer implements Analyzer {
               : authoredPosts.length / snapshot.posts.length,
           uniqueParticipantsRepliedTo: repliedTo.size,
           uniqueParticipantsRepliedToBy: repliedToBy.size,
-        },
-        computedAt,
-      });
+        }
+      );
     }
 
     return observations;
   }
 
   private computeDepths(
-    context: AnalysisContext
+    snapshot: AnalysisContext["snapshot"]
   ): Map<string, number> {
-    const { snapshot } = context;
     const depths = new Map<string, number>();
 
     const visit = (post: Post, depth: number) => {
@@ -167,8 +171,7 @@ export class StructuralAnalyzer implements Analyzer {
 
       depths.set(post.id, depth);
 
-      const children =
-        snapshot.childrenByParentId.get(post.id) ?? [];
+      const children = snapshot.childrenByParentId.get(post.id) ?? [];
 
       for (const child of children) {
         visit(child, depth + 1);
@@ -181,9 +184,8 @@ export class StructuralAnalyzer implements Analyzer {
   }
 
   private computeDescendantCounts(
-    context: AnalysisContext
+    snapshot: AnalysisContext["snapshot"]
   ): Map<string, number> {
-    const { snapshot } = context;
     const counts = new Map<string, number>();
 
     const count = (postId: string): number => {
@@ -193,8 +195,7 @@ export class StructuralAnalyzer implements Analyzer {
         return existing;
       }
 
-      const children =
-        snapshot.childrenByParentId.get(postId) ?? [];
+      const children = snapshot.childrenByParentId.get(postId) ?? [];
 
       let total = 0;
 
@@ -214,10 +215,7 @@ export class StructuralAnalyzer implements Analyzer {
     return counts;
   }
 
-  private edgeId(
-    parentId: string,
-    childId: string
-  ): string {
+  private edgeId(parentId: string, childId: string): string {
     return `${parentId}::${childId}`;
   }
 }

@@ -2,6 +2,10 @@
 
 import { Post, Thread } from "../../types";
 
+/* ============================================================================
+ * Snapshot
+ * ========================================================================== */
+
 export interface ConversationEdge {
   parentId: string;
   childId: string;
@@ -9,8 +13,9 @@ export interface ConversationEdge {
 
 export interface ThreadSnapshot {
   thread: Thread;
-  posts: Post[];
   rootPost: Post;
+
+  posts: Post[];
 
   postsById: Map<string, Post>;
   childrenByParentId: Map<string, Post[]>;
@@ -20,6 +25,10 @@ export interface ThreadSnapshot {
 
   capturedAt: Date;
 }
+
+/* ============================================================================
+ * Observations
+ * ========================================================================== */
 
 export type ObservationSubjectType =
   | "thread"
@@ -33,13 +42,25 @@ export interface ObservationSubject {
   id: string;
 }
 
+/**
+ * A single derived fact about a conversation.
+ *
+ * The `type` field is the stable contract that downstream analyzers and
+ * rankers depend on.
+ *
+ * Examples:
+ *  - structure.thread
+ *  - structure.post
+ *  - branch.summary
+ *  - participation.user
+ *  - ranking.golden-path
+ */
 export interface Observation<
   TData extends Record<string, unknown> = Record<string, unknown>
 > {
   subject: ObservationSubject;
 
-  // Stable identifier for the kind of derived information.
-  kind: string;
+  type: string;
 
   analyzerId: string;
   analyzerVersion: string;
@@ -49,30 +70,79 @@ export interface Observation<
   computedAt: Date;
 }
 
+export interface ObservationFilter {
+    subjectType?: ObservationSubjectType;
+    subjectId?: string;
+
+    type?: string;
+
+    analyzerId?: string;
+    analyzerVersion?: string;
+}
+
+/**
+ * Read-only access to observations.
+ *
+ * The backing implementation may query PostgreSQL, cache results in memory,
+ * or combine multiple sources. Consumers should never know.
+ */
+export interface ObservationQuery {
+  list(
+    filter?: ObservationFilter
+  ): Promise<Observation[]>;
+
+  first(
+    filter: ObservationFilter
+  ): Promise<Observation | null>;
+
+  exists(
+    filter: ObservationFilter
+  ): Promise<boolean>;
+}
+
+/* ============================================================================
+ * Analysis
+ * ========================================================================== */
+
 export interface AnalysisContext {
   snapshot: ThreadSnapshot;
 
-  // Allows analyzers to consume results produced earlier in the run.
-  observations: Observation[];
+  /**
+   * Observations produced by analyzers that have already completed during
+   * this analysis run.
+   */
+  observations: ObservationQuery;
 }
 
 export interface Analyzer {
   id: string;
   version: string;
 
-  analyze(context: AnalysisContext): Promise<Observation[]>;
+  analyze(
+    context: AnalysisContext
+  ): Promise<Observation[]>;
 }
+
+/* ============================================================================
+ * Ranking
+ * ========================================================================== */
 
 export interface RankingContext {
   snapshot: ThreadSnapshot;
-  observations: Observation[];
+
+  observations: ObservationQuery;
 }
 
-export interface RankedItem {
+export interface RankedSubject {
   subject: ObservationSubject;
 
-  rank?: number;
-  score?: number;
+  /**
+   * Higher scores are better.
+   *
+   * The engine is responsible for sorting and assigning ordinal positions if
+   * desired.
+   */
+  score: number;
 
   metadata?: Record<string, unknown>;
 }
@@ -81,10 +151,17 @@ export interface RankingResult {
   rankerId: string;
   rankerVersion: string;
 
-  threadId: string;
+  /**
+   * Stable identifier for the ranking strategy.
+   *
+   * Examples:
+   *  - golden-path
+   *  - chronological
+   *  - controversy
+   */
   resultType: string;
 
-  items: RankedItem[];
+  items: RankedSubject[];
 
   metadata?: Record<string, unknown>;
 
@@ -95,32 +172,7 @@ export interface Ranker {
   id: string;
   version: string;
 
-  rank(context: RankingContext): Promise<RankingResult>;
-}
-
-
-export interface AnalyzerRunSummary {
-  analyzerId: string;
-  analyzerVersion: string;
-  observationCount: number;
-  durationMs: number;
-}
-
-export interface AnalysisRunResult {
-  threadId: string;
-
-  observations: Observation[];
-
-  summary: {
-    analyzerCount: number;
-    observationCount: number;
-
-    subjects: Partial<
-      Record<ObservationSubjectType, number>
-    >;
-
-    analyzers: AnalyzerRunSummary[];
-
-    durationMs: number;
-  };
+  rank(
+    context: RankingContext
+  ): Promise<RankingResult>;
 }

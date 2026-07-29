@@ -1,87 +1,55 @@
-// src/conversation/engine/analysisEngine.ts
+// src/conversation/analysisEngine.ts
+
+import { Pool } from "pg";
 
 import {
   Analyzer,
-  AnalysisRunResult,
-  AnalyzerRunSummary,
   Observation,
-  ObservationSubjectType,
+  ThreadSnapshot,
 } from "../core/types";
 
 import { ThreadSnapshotService } from "../core/threadSnapshotService";
 import { ObservationRepository } from "../persistence/observationRepository";
+import { PostgresObservationQuery } from "../persistence/postgresObservationQuery";
 
 export class AnalysisEngine {
   constructor(
-    private snapshots: ThreadSnapshotService,
-    private observationRepository: ObservationRepository
+    private readonly snapshots: ThreadSnapshotService,
+    private readonly observations: ObservationRepository,
+    private readonly pg: Pool
   ) {}
 
-  async run(params: {
-    threadId: string;
-    analyzers: Analyzer[];
-  }): Promise<AnalysisRunResult> {
-    const startedAt = Date.now();
-
-    const snapshot = await this.snapshots.load(params.threadId);
-
-    const observations: Observation[] = [];
-    const analyzerSummaries: AnalyzerRunSummary[] = [];
-
-    for (const analyzer of params.analyzers) {
-      const analyzerStartedAt = Date.now();
-
-      const produced = await analyzer.analyze({
-        snapshot,
-        observations,
-      });
-
-      observations.push(...produced);
-
-      await this.observationRepository.saveAll({
-        threadId: params.threadId,
-        observations: produced,
-      });
-
-      analyzerSummaries.push({
-        analyzerId: analyzer.id,
-        analyzerVersion: analyzer.version,
-        observationCount: produced.length,
-        durationMs: Date.now() - analyzerStartedAt,
-      });
-    }
-
-    return {
-      threadId: params.threadId,
-
-      observations,
-
-      summary: {
-        analyzerCount: params.analyzers.length,
-        observationCount: observations.length,
-
-        subjects: this.countSubjects(observations),
-
-        analyzers: analyzerSummaries,
-
-        durationMs: Date.now() - startedAt,
-      },
-    };
+  async getSnapshot(
+    threadId: string
+  ): Promise<ThreadSnapshot> {
+    return this.snapshots.load(threadId);
   }
 
-  private countSubjects(
-    observations: Observation[]
-  ): Partial<Record<ObservationSubjectType, number>> {
-    const counts: Partial<
-      Record<ObservationSubjectType, number>
-    > = {};
+  async analyze(
+    threadId: string,
+    analyzers: Analyzer[]
+  ): Promise<Observation[]> {
+    const snapshot = await this.getSnapshot(threadId);
 
-    for (const observation of observations) {
-      const type = observation.subject.type;
+    const observationQuery =
+      new PostgresObservationQuery(this.pg, threadId);
 
-      counts[type] = (counts[type] ?? 0) + 1;
+    const produced: Observation[] = [];
+
+    for (const analyzer of analyzers) {
+      const observations = await analyzer.analyze({
+        snapshot,
+        observations: observationQuery,
+      });
+
+      produced.push(...observations);
+
+      await this.observations.saveAll({
+        threadId,
+        observations,
+      });
     }
 
-    return counts;
+    return produced;
   }
 }
