@@ -1,0 +1,171 @@
+/* =========================
+   GRAPH PAGE
+   ========================= */
+
+.graph-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.graph-title {
+  margin-bottom: 1.5rem;
+}
+
+.graph-controls {
+  margin-bottom: 2rem;
+}
+
+/* =========================
+   PANELS
+   ========================= */
+
+.graph-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.graph-panel h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.graph-divider {
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+
+/* =========================
+   CONTROL GROUPS
+   ========================= */
+
+.graph-list {
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+
+.graph-list label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.graph-list input[type="checkbox"],
+.graph-list input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+/* =========================
+   SECTION HEADERS
+   ========================= */
+
+.graph-section {
+  margin-bottom: 1.5rem;
+}
+
+.graph-section:last-child {
+  margin-bottom: 0;
+}
+
+.graph-section-title {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: .6rem;
+}
+
+/* =========================
+   BUTTON ROWS
+   ========================= */
+
+.graph-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: .75rem;
+}
+
+/* =========================
+   RENDER AREA
+   ========================= */
+
+.graph-render {
+  margin-top: 2rem;
+  background: var(--post-background);
+}
+
+/*
+    Everything below this point should mostly reuse
+    your existing forum CSS.
+
+    PostTree should use:
+
+        .post
+        .thread-indent
+        .post-meta
+        .post-content
+        .post-body
+        .post-highlighted
+
+    so it looks nearly identical to the real forum.
+*/
+
+/* =========================
+   OBSERVATIONS
+   ========================= */
+
+.observation-group {
+  margin-top: .75rem;
+  padding: .75rem;
+  background: #0f141c;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+
+.observation-group + .observation-group {
+  margin-top: .5rem;
+}
+
+.observation-type {
+  color: var(--accent);
+  font-size: .85rem;
+  font-weight: 600;
+  margin-bottom: .35rem;
+}
+
+.observation-json {
+  margin: 0;
+  padding: .5rem;
+
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+
+  overflow-x: auto;
+
+  font-size: .8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* =========================
+   COLLAPSE BUTTONS
+   ========================= */
+
+.post-collapse {
+  margin-right: .5rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: monospace;
+}
+
+.post-collapse:hover {
+  color: var(--accent);
+}
