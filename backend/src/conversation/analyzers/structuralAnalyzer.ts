@@ -12,6 +12,20 @@ export class StructuralAnalyzer implements Analyzer {
   readonly id = "structural";
   readonly version = "0.1.0";
 
+  readonly observationTypes = [
+  "structure.thread.summary",
+
+  "structure.post.depth",
+  "structure.post.direct-replies",
+  "structure.post.descendants",
+  "structure.post.leaf",
+  "structure.post.root",
+
+  "structure.edge.summary",
+
+  "structure.participant.summary",
+];
+
   async analyze(context: AnalysisContext): Promise<Observation[]> {
     const { snapshot } = context;
 

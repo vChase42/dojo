@@ -1,35 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import type { ObservationFilterState } from "../types";
 
-import { getObservationTypes } from "@/app/services/devService";
-
 interface Props {
+    types: string[];
     filters: ObservationFilterState;
     onChange(filters: ObservationFilterState): void;
 }
 
 const SUBJECTS = [
-    "posts",
-    "edges",
-    "participants",
+    "post",
+    "edge",
+    "participant",
     "thread",
 ] as const;
 
 export function ObservationFilters({
+    types,
     filters,
     onChange,
 }: Props) {
-    const [types, setTypes] = useState<string[]>([]);
-
-    useEffect(() => {
-        getObservationTypes()
-            .then(setTypes)
-            .catch(console.error);
-    }, []);
-
     function update(
         patch: Partial<ObservationFilterState>
     ) {

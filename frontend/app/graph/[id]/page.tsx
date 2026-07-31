@@ -1,23 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import "./graph.css";
 
+import type {
+  AnalyzerDescriptor,
+  ObservationFilterState,
+} from "./types";
+import { useParams } from "next/navigation";
+
+import { getAnalyzers } from "@/app/services/devService";
+
 import { AnalyzerSelection } from "./components/AnalyzerSelection";
+import { ObservationFilters } from "./components/ObservationFilters";
 import { RankerSelection } from "./components/RankerSelection";
 
+function threadIdFromParam(id: string): string {
+  id = decodeURIComponent(id);
+  if (
+    id.startsWith("http") ||
+    id.startsWith("reddit:")
+  ) {
+    return id;
+  }
+
+  return `https://localhost/o/${id}`;
+}
+
 export default function GraphPage() {
-    const [selectedAnalyzers, setSelectedAnalyzers] = useState(
-        () => new Set<string>()
-    );
+  const params = useParams();
 
-    const [selectedRankers, setSelectedRankers] = useState(
-        () => new Set<string>()
-    );
+  const shortId =
+    typeof params.id === "string"
+      ? params.id
+      : Array.isArray(params.id)
+      ? params.id[0]
+      : null;
 
-    const [view, setView] = useState<"observations" | "ranked">(
-        "observations"
+    const [analyzers, setAnalyzers] = useState<    AnalyzerDescriptor[]>([]);
+
+    const [selectedAnalyzers, setSelectedAnalyzers] = useState(    () => new Set<string>());
+
+    const [selectedRankers, setSelectedRankers] = useState(    () => new Set<string>());
+
+    const [view, setView] = useState<"observations" | "ranked">("observations");
+
+    const [filters, setFilters] = useState<ObservationFilterState>({
+        subject: "post",
+        types: [],
+
+        showAuthor: true,
+        showContent: true,
+        showEmpty: false,
+    });
+
+    const [threadId, setThreadId] = useState<string>("");
+
+    useEffect(() => {
+        setThreadId(threadIdFromParam(shortId!));
+        getAnalyzers()
+            .then(setAnalyzers)
+            .catch(console.error);
+    }, []);
+
+    const observationTypes = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    analyzers
+                        .filter(analyzer =>
+                            selectedAnalyzers.has(analyzer.id)
+                        )
+                        .flatMap(
+                            analyzer => analyzer.observationTypes
+                        )
+                )
+            ),
+        [analyzers, selectedAnalyzers]
     );
 
     async function analyze() {
@@ -32,7 +92,7 @@ export default function GraphPage() {
     return (
         <main className="forum graph-page">
             <h1 className="graph-title">
-                Developer Graph View
+                Developer Graph View for thread: {threadId}
             </h1>
 
             <div className="graph-controls">
@@ -43,6 +103,7 @@ export default function GraphPage() {
                         </div>
 
                         <AnalyzerSelection
+                            analyzers={analyzers}
                             selected={selectedAnalyzers}
                             onChange={setSelectedAnalyzers}
                             onAnalyze={analyze}
@@ -89,7 +150,11 @@ export default function GraphPage() {
                                 Observation Filters
                             </div>
 
-                            {/* TODO */}
+                            <ObservationFilters
+                                types={observationTypes}
+                                filters={filters}
+                                onChange={setFilters}
+                            />
                         </div>
                     </section>
                 )}

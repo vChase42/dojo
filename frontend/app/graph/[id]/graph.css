@@ -169,3 +169,54 @@
 .post-collapse:hover {
   color: var(--accent);
 }
+
+
+/* =========================
+   BUTTONS
+   ========================= */
+
+
+.graph-actions button,
+.graph-panel button {
+  appearance: none;
+
+  padding: .25rem .5rem;
+
+  background: var(--button-bg);
+  color: var(--button-text);
+
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  cursor: pointer;
+
+  transition:
+    background .15s ease,
+    border-color .15s ease;
+}
+
+.graph-actions button:hover,
+.graph-panel button:hover {
+  background: var(--button-bg-hover);
+  border-color: var(--button-bg-hover);
+}
+
+.graph-callout {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+.graph-analyzer-list {
+  padding: .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #0d131d;
+}
+
+.graph-primary-button {
+  min-width: 140px;
+  font-weight: 600;
+}

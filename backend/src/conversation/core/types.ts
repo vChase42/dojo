@@ -118,6 +118,8 @@ export interface Analyzer {
   id: string;
   version: string;
 
+  observationTypes: string[];
+
   analyze(
     context: AnalysisContext
   ): Promise<Observation[]>;

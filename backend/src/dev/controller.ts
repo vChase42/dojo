@@ -8,7 +8,6 @@ import { Post } from "../types";
 import { AnalysisEngine } from "../conversation/engine/analysisEngine";
 import { ThreadSnapshotService } from "../conversation/core/threadSnapshotService";
 import { PostgresObservationQuery } from "../conversation/persistence/postgresObservationQuery";
-import { StructuralAnalyzer } from "../conversation/analyzers/structuralAnalyzer";
 
 export class DevController {
   constructor(
@@ -17,11 +16,31 @@ export class DevController {
     private readonly pg: Pool
   ) {}
 
-  async analyze(
-    req: Request,
-    res: Response
-  ): Promise<void> {
-    const { threadId } = req.body;
+  async analyzers(req: Request, res: Response): Promise<void> {
+    res.json(
+      this.analysis.getAnalyzers().map(analyzer => ({
+        id: analyzer.id,
+        name: analyzer.id,
+        observationTypes: analyzer.observationTypes,
+      }))
+    );
+  }
+
+  async rankers(req: Request, res: Response): Promise<void> {
+    res.json(
+      this.analysis.getRankers().map(ranker => ({
+        id: ranker.id,
+        name: ranker.id,
+      }))
+    );
+  }
+
+  async observationTypes(req: Request, res: Response): Promise<void> {
+    res.json(this.analysis.getObservationTypes());
+  }
+
+  async analyze(req: Request, res: Response): Promise<void> {
+    const { threadId, analyzers } = req.body;
 
     if (!threadId) {
       res.status(400).json({
@@ -38,12 +57,7 @@ export class DevController {
       return;
     }
 
-    const observations = await this.analysis.analyze(
-      threadId,
-      [
-        new StructuralAnalyzer(),
-      ]
-    );
+    const observations = await this.analysis.analyze(threadId, analyzers ?? []);
 
     res.json({
       success: true,
@@ -51,10 +65,7 @@ export class DevController {
     });
   }
 
-  async graph(
-    req: Request,
-    res: Response
-  ): Promise<void> {
+  async graph(req: Request, res: Response): Promise<void> {
     const { threadId } = req.params;
 
     const snapshot = await this.snapshots.load(threadId);
@@ -64,22 +75,14 @@ export class DevController {
       return;
     }
 
-    const observations =
-      await new PostgresObservationQuery(
-        this.pg,
-        threadId
-      ).list();
+    const observations = await new PostgresObservationQuery(this.pg, threadId).list();
 
-    const observationsBySubject =
-      new Map<string, typeof observations>();
+    const observationsBySubject = new Map<string, typeof observations>();
 
     for (const observation of observations) {
-      const key =
-        `${observation.subject.type}:${observation.subject.id}`;
+      const key = `${observation.subject.type}:${observation.subject.id}`;
 
-      const list =
-        observationsBySubject.get(key) ?? [];
-
+      const list = observationsBySubject.get(key) ?? [];
       list.push(observation);
 
       observationsBySubject.set(key, list);
@@ -93,14 +96,10 @@ export class DevController {
 
       nodes.push({
         id: post.id,
-
         parentId: post.parentId,
-
         authorId: post.authorIri,
         createdAt: post.createdAt,
-
         body: post.content,
-
         observations: Object.fromEntries(
           (observationsBySubject.get(key) ?? []).map(o => [
             o.type,
@@ -116,21 +115,19 @@ export class DevController {
         });
       }
 
-      const children =
-        snapshot.childrenByParentId.get(post.id) ?? [];
+      const children = snapshot.childrenByParentId.get(post.id) ?? [];
 
-      for (const child of children)
+      for (const child of children) {
         visit(child);
+      }
     };
 
     visit(snapshot.rootPost);
 
     res.json({
       threadId,
-
       nodes,
       edges,
-
       observations,
     });
   }

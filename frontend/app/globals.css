@@ -46,4 +46,9 @@ body {
 
   --radius: 8px;
   --radius-sm: 6px;
+
+  --button-bg: #274b6d;
+  --button-bg-hover: #315b82;
+  --button-border: #3b6b96;
+  --button-text: #edf6ff;
 }

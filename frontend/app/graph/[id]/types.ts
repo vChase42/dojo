@@ -3,10 +3,11 @@
 export interface AnalyzerDescriptor {
   id: string;
   name: string;
+  observationTypes: string[];
 }
 
 export interface ObservationFilterState {
-  subject: "posts" | "edges" | "participants" | "thread";
+  subject: "post" | "edge" | "participant" | "thread";
   types: string[];
 
   showAuthor: boolean;
