@@ -5,62 +5,78 @@ import { useEffect, useMemo, useState } from "react";
 import "./graph.css";
 
 import type {
-  AnalyzerDescriptor,
-  ObservationFilterState,
+    AnalyzerDescriptor,
+    GraphNode,
+    ObservationFilterState,
 } from "./types";
+
 import { useParams } from "next/navigation";
 
-import { getAnalyzers } from "@/app/services/devService";
+import {
+    analyze as runAnalysis,
+    getAnalyzers,
+    getGraph,
+    getObservations,
+} from "@/app/services/devService";
 
 import { AnalyzerSelection } from "./components/AnalyzerSelection";
+import { GraphTree } from "./components/tree/GraphTree";
 import { ObservationFilters } from "./components/ObservationFilters";
 import { RankerSelection } from "./components/RankerSelection";
+import { attachObservations, buildTree } from "./components/tree/tree";
 
 function threadIdFromParam(id: string): string {
-  id = decodeURIComponent(id);
-  if (
-    id.startsWith("http") ||
-    id.startsWith("reddit:")
-  ) {
-    return id;
-  }
+    id = decodeURIComponent(id);
 
-  return `https://localhost/o/${id}`;
+    if (id.startsWith("http") || id.startsWith("reddit:")) {
+        return id;
+    }
+
+    return `https://localhost/o/${id}`;
 }
 
 export default function GraphPage() {
-  const params = useParams();
+    const params = useParams();
 
-  const shortId =
-    typeof params.id === "string"
-      ? params.id
-      : Array.isArray(params.id)
-      ? params.id[0]
-      : null;
+    const shortId =
+        typeof params.id === "string"
+            ? params.id
+            : Array.isArray(params.id)
+              ? params.id[0]
+              : null;
 
-    const [analyzers, setAnalyzers] = useState<    AnalyzerDescriptor[]>([]);
+    const [threadId, setThreadId] = useState("");
 
-    const [selectedAnalyzers, setSelectedAnalyzers] = useState(    () => new Set<string>());
+    const [graph, setGraph] = useState<GraphNode[]>([]);
 
-    const [selectedRankers, setSelectedRankers] = useState(    () => new Set<string>());
+    const [analyzers, setAnalyzers] = useState<AnalyzerDescriptor[]>([]);
+    const [selectedAnalyzers, setSelectedAnalyzers] = useState(() => new Set<string>());
+    const [selectedRankers, setSelectedRankers] = useState(() => new Set<string>());
 
     const [view, setView] = useState<"observations" | "ranked">("observations");
 
     const [filters, setFilters] = useState<ObservationFilterState>({
         subject: "post",
         types: [],
-
         showAuthor: true,
         showContent: true,
         showEmpty: false,
     });
 
-    const [threadId, setThreadId] = useState<string>("");
-
     useEffect(() => {
-        setThreadId(threadIdFromParam(shortId!));
-        getAnalyzers()
-            .then(setAnalyzers)
+        const threadId = threadIdFromParam(shortId!);
+
+        setThreadId(threadId);
+
+        Promise.all([
+            getAnalyzers(),
+            getGraph(threadId),
+        ])
+            .then(([analyzers, graph]) => {
+                console.log(graph);
+                setAnalyzers(analyzers);
+                setGraph(buildTree(graph as any));
+            })
             .catch(console.error);
     }, []);
 
@@ -69,24 +85,21 @@ export default function GraphPage() {
             Array.from(
                 new Set(
                     analyzers
-                        .filter(analyzer =>
-                            selectedAnalyzers.has(analyzer.id)
-                        )
-                        .flatMap(
-                            analyzer => analyzer.observationTypes
-                        )
+                        .filter(analyzer => selectedAnalyzers.has(analyzer.id))
+                        .flatMap(analyzer => analyzer.observationTypes)
                 )
             ),
         [analyzers, selectedAnalyzers]
     );
 
     async function analyze() {
-        console.log(
-            "Analyze:",
-            Array.from(selectedAnalyzers)
-        );
+        const analyzerIds = Array.from(selectedAnalyzers);
 
-        // TODO
+        await runAnalysis(threadId, analyzerIds);
+
+        const observations = await getObservations(threadId, analyzerIds);
+
+        setGraph(current => attachObservations(current, observations));
     }
 
     return (
@@ -117,27 +130,28 @@ export default function GraphPage() {
                             View
                         </div>
 
-                        <div className="graph-list">
+                        <div className="graph-list-horizontal">
                             <label>
                                 <input
                                     type="radio"
                                     checked={view === "observations"}
-                                    onChange={() =>
-                                        setView("observations")
-                                    }
+                                    onChange={() => setView("observations")}
                                 />
-                                Observations
+                                <span className="pl-1">
+                                    Observations
+                                </span>
+
                             </label>
 
                             <label>
                                 <input
                                     type="radio"
                                     checked={view === "ranked"}
-                                    onChange={() =>
-                                        setView("ranked")
-                                    }
+                                    onChange={() => setView("ranked")}
                                 />
-                                Ranked
+                                <span className="pl-1">
+                                    Ranked
+                                </span>
                             </label>
                         </div>
                     </div>
@@ -176,11 +190,14 @@ export default function GraphPage() {
             </div>
 
             <section className="graph-render">
-                {view === "observations" ? (
-                    <>Observation Tree</>
-                ) : (
-                    <>Ranked Posts</>
-                )}
+                {view === "observations"
+                    ? <GraphTree nodes={graph} filters={filters} />
+                    : <>Ranked Posts</>}
+            </section>
+            <section className="p-4">
+                <div style={{fontSize:30}}>
+                    End of Page
+                </div>
             </section>
         </main>
     );

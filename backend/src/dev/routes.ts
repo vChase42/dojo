@@ -13,11 +13,9 @@ export function createDevRoutes(controller: DevController): Router {
     controller.observationTypes(req, res)
   );
 
-  router.post("/analyze", (req, res) => controller.analyze(req, res));
-
-  router.get("/thread/:threadId/graph", (req, res) =>
-    controller.graph(req, res)
-  );
+  router.post("/thread/analysis", (req, res) => controller.analyze(req, res));
+  router.get("/thread/graph", (req, res) => controller.graph(req, res));
+  router.get("/thread/observations", (req, res) => controller.observations(req, res));
 
   return router;
 }
