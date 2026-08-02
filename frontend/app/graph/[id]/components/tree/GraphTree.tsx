@@ -3,14 +3,14 @@
 import { useState } from "react";
 
 import type {
-    GraphNode,
+    GraphNode as GraphNodeType,
     ObservationFilterState,
 } from "../../types";
 
-import { GraphNode as GraphNodeView } from "./GraphNode";
+import { GraphNode } from "./GraphNode";
 
 type GraphTreeProps = {
-    nodes: GraphNode[];
+    nodes: GraphNodeType[];
     filters: ObservationFilterState;
 };
 
@@ -63,7 +63,7 @@ export function GraphTree({
             </div>
 
             {nodes.map(node => (
-                <GraphNodeView
+                <GraphNode
                     key={node.post.id}
                     node={node}
                     expanded={expanded}
@@ -76,7 +76,7 @@ export function GraphTree({
 }
 
 function allPostIds(
-    nodes: GraphNode[]
+    nodes: GraphNodeType[]
 ): string[] {
     return nodes.flatMap(node => [
         node.post.id,

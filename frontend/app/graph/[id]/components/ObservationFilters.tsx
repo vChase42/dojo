@@ -1,5 +1,6 @@
 "use client";
 
+import { stringify } from "querystring";
 import type { ObservationFilterState } from "../types";
 
 interface Props {
@@ -44,7 +45,7 @@ export function ObservationFilters({
                     Subject
                 </div>
 
-                <div className="graph-list">
+                <div className="graph-list-horizontal">
                     {SUBJECTS.map(subject => (
                         <label key={subject}>
                             <input
@@ -55,8 +56,9 @@ export function ObservationFilters({
                                     update({ subject })
                                 }
                             />
-
-                            {subject}
+                            <span className="pl-1">
+                                {subject.charAt(0).toUpperCase() + subject.slice(1)}
+                            </span>
                         </label>
                     ))}
                 </div>
@@ -69,7 +71,7 @@ export function ObservationFilters({
                     Display
                 </div>
 
-                <div className="graph-list">
+                <div className="graph-list-horizontal">
                     <label>
                         <input
                             type="checkbox"
@@ -80,7 +82,9 @@ export function ObservationFilters({
                                 })
                             }
                         />
+                        <span className="pl-1">
                         Show author
+                        </span>
                     </label>
 
                     <label>
@@ -93,7 +97,9 @@ export function ObservationFilters({
                                 })
                             }
                         />
+                        <span className="pl-1">
                         Show content
+                        </span>
                     </label>
 
                     <label>
@@ -106,7 +112,9 @@ export function ObservationFilters({
                                 })
                             }
                         />
+                        <span className="pl-1">
                         Show empty nodes
+                        </span>
                     </label>
                 </div>
             </div>

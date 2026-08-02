@@ -29,13 +29,24 @@ export function GraphNode({
         [node]
     );
 
+    const cleanAuthorId = (id: string) => {
+        if(id.startsWith("http")){
+            return id.split("\/").at(-1);
+        }else if(id.startsWith("reddit")){
+            return id.split(":").at(-1);
+        }
+
+        return id;
+    }
+
+
 return (
     <>
         <article className="post">
             <div className="post-meta">
-                <div className="post-author">
-                    {node.post.authorId}
-                </div>
+                {filters.showAuthor && (<div className="post-author">
+                    {cleanAuthorId(node.post.authorId)}
+                </div>)}
 
                 <div className="post-date">
                     {childCount} replies
@@ -61,9 +72,9 @@ return (
                         </button>
                     )}
 
-                    <div className="post-body">
+                    {filters.showContent && (<div className="post-body">
                         {node.post.body}
-                    </div>
+                    </div>)}
                 </div>
 
                 <ObservationList
