@@ -1,93 +1,156 @@
-import type { GraphPost } from "../../types";
-import type { GraphNode, Observation } from "../../types";
+import type {
+  GraphPost,
+  Observation,
+  ObservationGraph,
+  ObservationTreeNode,
+  ObservationSubjectType,
+} from "../../types";
 
-type GraphDtoNode = {
+type GraphDto = {
   threadId: string;
-  nodes: GraphPost[],
+  nodes: GraphPost[];
   edges: {
     source: string;
     target: string;
-  }[],
+  }[];
 };
 
-export function buildTree(graph: GraphDtoNode): GraphNode[] {
-    const nodes = new Map<string, GraphNode>();
-    console.log(graph);
+export function buildObservationGraph(
+  graph: GraphDto,
+  observations: Observation[]
+): ObservationGraph {
+  const posts = new Map<string, GraphPost>();
 
-    for (const post of graph.nodes) {
-        nodes.set(post.id, {
-            post,
-            observations: [],
-            children: [],
-            depth: 0,
-        });
+  for (const post of graph.nodes) {
+    posts.set(post.id, post);
+  }
+
+  const observationsBySubject = new Map<
+    ObservationSubjectType,
+    Map<string, Observation[]>
+  >();
+
+  for (const observation of observations) {
+    let byId = observationsBySubject.get(observation.subject.type);
+
+    if (!byId) {
+      byId = new Map();
+      observationsBySubject.set(observation.subject.type, byId);
     }
 
-    const hasParent = new Set<string>();
+    const list = byId.get(observation.subject.id) ?? [];
+    list.push(observation);
+    byId.set(observation.subject.id, list);
+  }
 
-    for (const edge of graph.edges) {
-        const parent = nodes.get(edge.source);
-        const child = nodes.get(edge.target);
+  const childrenByPost = new Map<string, GraphPost[]>();
+  const hasParent = new Set<string>();
 
-        if (!parent || !child) {
-            continue;
-        }
+  for (const edge of graph.edges) {
+    const parent = posts.get(edge.source);
+    const child = posts.get(edge.target);
 
-        parent.children.push(child);
-        hasParent.add(edge.target);
+    if (!parent || !child) {
+      continue;
     }
 
-    const roots = [...nodes.values()].filter(node => !hasParent.has(node.post.id));
+    const children = childrenByPost.get(parent.id) ?? [];
+    children.push(child);
+    childrenByPost.set(parent.id, children);
 
-    for (const root of roots) {
-        assignDepth(root, 0);
-    }
+    hasParent.add(child.id);
+  }
 
-    return roots;
+  const rootPosts = graph.nodes.filter(post => !hasParent.has(post.id));
+
+
+    const root: ObservationTreeNode = {
+    subject: {
+      key: `thread:${graph.threadId}`,
+      type: "thread",
+      id: graph.threadId,
+      observations:
+        observationsBySubject.get("thread")?.get(graph.threadId) ?? [],
+    },
+    children: [],
+  };
+
+  const participants =
+    observationsBySubject.get("participant") ?? new Map();
+
+  for (const [participantId, observations] of participants) {
+    root.children.push({
+      subject: {
+        key: `participant:${participantId}`,
+        type: "participant",
+        id: participantId,
+        observations,
+      },
+      children: [],
+    });
+  }
+
+  for (const post of rootPosts) {
+    root.children.push(
+      buildPostNode(
+        post,
+        posts,
+        childrenByPost,
+        observationsBySubject
+      )
+    );
+  }
+
+  return {
+    root,
+    posts,
+  };
 }
 
 
+function buildPostNode(
+  post: GraphPost,
+  posts: Map<string, GraphPost>,
+  childrenByPost: Map<string, GraphPost[]>,
+  observationsBySubject: Map<ObservationSubjectType, Map<string, Observation[]>>
+): ObservationTreeNode {
+  const node: ObservationTreeNode = {
+    subject: {
+      key: `post:${post.id}`,
+      type: "post",
+      id: post.id,
+      observations: observationsBySubject.get("post")?.get(post.id) ?? [],
+      payload: post,
+    },
+    children: [],
+  };
 
-function assignDepth(
-    node: GraphNode,
-    depth: number
-) {
-    node.depth = depth;
+  const children = childrenByPost.get(post.id) ?? [];
 
-    for (const child of node.children) {
-        assignDepth(child, depth + 1);
-    }
-}
+  for (const child of children) {
+    const edgeId = `${post.id}::${child.id}`;
 
+    node.children.push({
+      subject: {
+        key: `edge:${edgeId}`,
+        type: "edge",
+        id: edgeId,
+        observations: observationsBySubject.get("edge")?.get(edgeId) ?? [],
+        payload: {
+          parentId: post.id,
+          childId: child.id,
+        },
+      },
+      children: [
+        buildPostNode(
+          child,
+          posts,
+          childrenByPost,
+          observationsBySubject
+        ),
+      ],
+    });
+  }
 
-export function attachObservations(
-    nodes: GraphNode[],
-    observations: Observation[]
-): GraphNode[] {
-    const byPostId = new Map<string, Observation[]>();
-
-    for (const observation of observations) {
-        if (observation.subject.type !== "post") {
-            continue;
-        }
-
-        const postId = observation.subject.id;
-        const list = byPostId.get(postId) ?? [];
-
-        list.push(observation);
-        byPostId.set(postId, list);
-    }
-
-    return nodes.map(node => attachNode(node, byPostId));
-}
-
-function attachNode(
-    node: GraphNode,
-    observations: Map<string, Observation[]>
-): GraphNode {
-    return {
-        ...node,
-        observations: observations.get(node.post.id) ?? [],
-        children: node.children.map(child => attachNode(child, observations)),
-    };
+  return node;
 }

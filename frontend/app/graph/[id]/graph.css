@@ -12,7 +12,7 @@
 }
 
 .graph-controls {
-  margin-bottom: 2rem;
+  /* margin-bottom: 1rem; */
 }
 
 /* =========================
@@ -103,8 +103,12 @@
    ========================= */
 
 .graph-render {
-  margin-top: 2rem;
-  background: var(--post-background);
+  /* margin-top: 1rem; */
+  background: var(--gray);
+  padding: .5rem;
+  margin: .5rem;
+  border: 1px solid var(--silver);
+  border-radius: var(--radius-sm)
 }
 
 /* =========================
@@ -286,3 +290,55 @@
   min-width: 140px;
   font-weight: 600;
 }
+
+
+.graph-tree-actions button,
+.graph-tree-panel button {
+  appearance: none;
+
+  padding: .25rem .5rem;
+
+  background: var(--button-bg);
+  color: var(--button-text);
+
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  cursor: pointer;
+
+  transition:
+    background .15s ease,
+    border-color .15s ease;
+}
+
+.graph-tree-actions button:hover,
+.graph-tree-panel button:hover {
+  background: var(--button-bg-hover);
+  border-color: var(--button-bg-hover);
+}
+
+.toggle-expand-button button {
+  appearance: none;
+
+  padding: .25rem .5rem;
+
+  background: var(--orange);
+  color: var(--button-text);
+
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-sm);
+
+  font: inherit;
+  cursor: pointer;
+
+  transition:
+    background .15s ease,
+    border-color .15s ease;
+}
+
+.toggle-expand-button button:hover {
+  border-color: var(--button-bg-hover);
+  color: var(--bg);
+}
+

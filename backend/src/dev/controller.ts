@@ -69,7 +69,6 @@ async analyze(req: Request, res: Response): Promise<void> {
 }
 
 async graph(req: Request, res: Response): Promise<void> {
-  console.log("whatfukc");
     const threadId = req.query.threadId as string;
 
     const snapshot = await this.snapshots.load(threadId);

@@ -1,85 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
-    GraphNode as GraphNodeType,
-    ObservationFilterState,
+  ObservationGraph,
+  ObservationTreeNode,
+  ObservationFilterState,
 } from "../../types";
 
-import { GraphNode } from "./GraphNode";
+import { GraphNode } from "./ObservationTreeNode";
 
 type GraphTreeProps = {
-    nodes: GraphNodeType[];
-    filters: ObservationFilterState;
+  graph: ObservationGraph;
+  filters: ObservationFilterState;
 };
 
 export function GraphTree({
-    nodes,
-    filters,
+  graph,
+  filters,
 }: GraphTreeProps) {
-    const [expanded, setExpanded] = useState(
-        () => new Set(allPostIds(nodes))
-    );
+  const [expanded, setExpanded] = useState(() => new Set<string>());
+  const hasInitialized = useRef(false);
 
-    function toggle(postId: string) {
-        setExpanded(current => {
-            const next = new Set(current);
+  useEffect(() => {
+    if (hasInitialized.current) return;
 
-            if (next.has(postId)) {
-                next.delete(postId);
-            } else {
-                next.add(postId);
-            }
+    setExpanded(new Set(allKeys(graph.root)));
+    hasInitialized.current = true;
+  }, [graph]);
 
-            return next;
-        });
-    }
+  function toggle(key: string) {
+    setExpanded(current => {
+      const next = new Set(current);
 
-    function expandAll() {
-        setExpanded(new Set(allPostIds(nodes)));
-    }
+      next.has(key) ? next.delete(key) : next.add(key);
 
-    function collapseAll() {
-        setExpanded(new Set());
-    }
+      return next;
+    });
+  }
 
-    return (
-        <div className="graph-tree">
-            <div className="graph-tree-actions">
-                <button
-                    type="button"
-                    onClick={expandAll}
-                >
-                    Expand All
-                </button>
+  function expandAll() {
+    setExpanded(new Set(allKeys(graph.root)));
+  }
 
-                <button
-                    type="button"
-                    onClick={collapseAll}
-                >
-                    Collapse All
-                </button>
-            </div>
+  function collapseAll() {
+    setExpanded(new Set());
+  }
 
-            {nodes.map(node => (
-                <GraphNode
-                    key={node.post.id}
-                    node={node}
-                    expanded={expanded}
-                    onToggle={toggle}
-                    filters={filters}
-                />
-            ))}
-        </div>
-    );
+  return (
+    <div className="graph-tree">
+      <div className="graph-tree-actions">
+        <button
+          type="button"
+          onClick={expandAll}
+        >
+          Expand All
+        </button>
+
+        <button
+          className="m-1"
+          type="button"
+          onClick={collapseAll}
+        >
+          Collapse All
+        </button>
+      </div>
+
+      <GraphNode
+        node={graph.root}
+        graph={graph}
+        expanded={expanded}
+        onToggle={toggle}
+        filters={filters}
+      />
+    </div>
+  );
 }
 
-function allPostIds(
-    nodes: GraphNodeType[]
+function allKeys(
+  node: ObservationTreeNode
 ): string[] {
-    return nodes.flatMap(node => [
-        node.post.id,
-        ...allPostIds(node.children),
-    ]);
+  return [
+    node.subject.key,
+    ...node.children.flatMap(allKeys),
+  ];
 }
