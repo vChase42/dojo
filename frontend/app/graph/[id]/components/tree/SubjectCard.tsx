@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+
 import type {
   GraphPost,
   GraphSubject,
@@ -27,8 +29,47 @@ export function SubjectCard({
   expanded,
   onToggle,
 }: Props) {
+  const [hovered, setHovered] = useState(false);
+
+  const [showAuthor, setShowAuthor] = useState<boolean | null>(null);
+  const [showContent, setShowContent] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!hovered) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      switch (e.key.toLowerCase()) {
+        case "a":
+          e.preventDefault();
+          setShowAuthor(current => current == null ? !filters.showAuthor : !current);
+          break;
+
+        case "c":
+          e.preventDefault();
+          setShowContent(current => current == null ? !filters.showContent : !current);
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [hovered, filters.showAuthor, filters.showContent]);
+
+  const localFilters = useMemo(
+    () => ({
+      ...filters,
+      showAuthor: showAuthor ?? filters.showAuthor,
+      showContent: showContent ?? filters.showContent,
+    }),
+    [filters, showAuthor, showContent]
+  );
+
   return (
-    <article className="post">
+    <article
+      className="post"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div className="post-meta">
         <div className="toggle-expand-button">
           {expandable && (
@@ -43,7 +84,7 @@ export function SubjectCard({
         </div>
       </div>
 
-      {renderBody(subject, graph, filters)}
+      {renderBody(subject, graph, localFilters)}
     </article>
   );
 }
@@ -120,6 +161,12 @@ function renderBody(
   }
 }
 
+const cleanAuthorId = (id: string) => {
+  if (id.startsWith("http")) return id.split("/").at(-1);
+  if (id.startsWith("reddit")) return id.split(":").at(-1);
+  return id;
+};
+
 function PostCard({
   post,
   observations,
@@ -129,12 +176,6 @@ function PostCard({
   observations: Observation[];
   filters: ObservationFilterState;
 }) {
-  const cleanAuthorId = (id: string) => {
-    if (id.startsWith("http")) return id.split("/").at(-1);
-    if (id.startsWith("reddit")) return id.split(":").at(-1);
-    return id;
-  };
-
   return (
     <div className="post-content">
       {filters.showAuthor && (
@@ -174,13 +215,24 @@ function EdgeCard({
   const parent = graph.posts.get(edge.parentId);
   const child = graph.posts.get(edge.childId);
 
+  let parentAuthor = "";
+  let childAuthor = "";
+
+  if (filters.showAuthor && parent?.authorId) {
+    parentAuthor = cleanAuthorId(parent.authorId) + ": ";
+  }
+
+  if (filters.showAuthor && child?.authorId) {
+    childAuthor = cleanAuthorId(child.authorId) + ": ";
+  }
+
   return (
     <div className="post-content">
       {filters.showContent && (
         <>
-          <div>{parent?.body}</div>
+          <div>{parentAuthor}{parent?.body}</div>
           <hr />
-          <div>{child?.body}</div>
+          <div>{childAuthor}{child?.body}</div>
         </>
       )}
 
