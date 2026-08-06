@@ -35,6 +35,7 @@ export type ObservationSubjectType =
   | "post"
   | "edge"
   | "participant"
+  | "path"
   | "branch";
 
 export interface ObservationSubject {
