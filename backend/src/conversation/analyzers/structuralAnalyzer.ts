@@ -1,7 +1,7 @@
 import { Post } from "../../types";
 import {
   Analyzer,
-  AnalysisContext,
+  AnalyzerContext,
   Observation,
 } from "../core/types";
 import { createObserver } from "./utils";
@@ -9,7 +9,7 @@ import { createObserver } from "./utils";
 export class StructuralAnalyzer implements Analyzer {
   readonly id = "structural";
   readonly version = "0.1.0";
-
+  readonly dependsOn = [];
   readonly observationTypes = [
     // Thread
     "structure.thread.post-count",
@@ -57,7 +57,7 @@ export class StructuralAnalyzer implements Analyzer {
     "structure.path.branch-points",
   ];
 
-  async analyze(context: AnalysisContext): Promise<Observation[]> {
+  async analyze(context: AnalyzerContext): Promise<Observation[]> {
     const { snapshot } = context;
 
     const observations: Observation[] = [];
@@ -481,7 +481,7 @@ export class StructuralAnalyzer implements Analyzer {
   // ------------------------------------------------
 
   private computeDepths(
-    snapshot: AnalysisContext["snapshot"]
+    snapshot: AnalyzerContext["snapshot"]
   ): Map<string, number> {
     const depths = new Map<string, number>();
 
@@ -503,7 +503,7 @@ export class StructuralAnalyzer implements Analyzer {
   }
 
   private computeDescendantCounts(
-    snapshot: AnalysisContext["snapshot"]
+    snapshot: AnalyzerContext["snapshot"]
   ): Map<string, number> {
     const counts = new Map<string, number>();
 
@@ -535,7 +535,7 @@ export class StructuralAnalyzer implements Analyzer {
   }
 
   private computePaths(
-    snapshot: AnalysisContext["snapshot"]
+    snapshot: AnalyzerContext["snapshot"]
   ): Map<string, Post[]> {
     const paths = new Map<string, Post[]>();
 
@@ -563,7 +563,7 @@ export class StructuralAnalyzer implements Analyzer {
   }
 
   private computeBranches(
-    snapshot: AnalysisContext["snapshot"]
+    snapshot: AnalyzerContext["snapshot"]
   ): Map<string, Post[]> {
     const branches = new Map<string, Post[]>();
 

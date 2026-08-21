@@ -1,35 +1,36 @@
-// src/conversation/analysisEngine.ts
+// src/conversation/engine/analysisEngine.ts
 
 import { Pool } from "pg";
 
 import {
   Analyzer,
+  AnalyzerContext,
   Observation,
   Ranker,
   ThreadSnapshot,
 } from "../core/types";
 
 import { ThreadSnapshotService } from "../core/threadSnapshotService";
-import { ObservationRepository } from "../persistence/observationRepository";
 import { PostgresObservationQuery } from "../persistence/postgresObservationQuery";
+import { ObservationRepository } from "../persistence/observationRepository";
 
 import { StructuralAnalyzer } from "../analyzers/structuralAnalyzer";
 
 export class AnalysisEngine {
-  private readonly analyzers: Analyzer[] = [
-    new StructuralAnalyzer(),
-  ];
+  private readonly analyzerMap = new Map<string, Analyzer>([
+    ["structural", new StructuralAnalyzer()],
+  ]);
 
   private readonly rankers: Ranker[] = [];
 
   constructor(
     private readonly snapshots: ThreadSnapshotService,
-    private readonly observations: ObservationRepository,
+    private readonly repository: ObservationRepository,
     private readonly pg: Pool
   ) {}
 
   getAnalyzers(): Analyzer[] {
-    return this.analyzers;
+    return [...this.analyzerMap.values()];
   }
 
   getRankers(): Ranker[] {
@@ -39,7 +40,7 @@ export class AnalysisEngine {
   getObservationTypes(): string[] {
     return [
       ...new Set(
-        this.analyzers.flatMap(
+        this.getAnalyzers().flatMap(
           analyzer => analyzer.observationTypes
         )
       ),
@@ -56,31 +57,93 @@ export class AnalysisEngine {
     threadId: string,
     analyzerIds: string[]
   ): Promise<Observation[]> {
-    const analyzers = this.analyzers.filter(
-      analyzer => analyzerIds.includes(analyzer.id)
-    );
-
     const snapshot = await this.getSnapshot(threadId);
 
     const observationQuery =
-      new PostgresObservationQuery(this.pg, threadId);
+      new PostgresObservationQuery(
+        this.pg,
+        threadId
+      );
 
-    const produced: Observation[] = [];
+    const context: AnalyzerContext = {
+      snapshot,
+      observations: new Map(),
+    };
 
-    for (const analyzer of analyzers) {
-      const observations = await analyzer.analyze({
-        snapshot,
-        observations: observationQuery,
-      });
-
-      produced.push(...observations);
-
-      await this.observations.saveAll({
+    for (const analyzerId of analyzerIds) {
+      await this.analyzeRecursive(
+        analyzerId,
         threadId,
-        observations,
-      });
+        context,
+        observationQuery
+      );
     }
 
-    return produced;
+    return analyzerIds.flatMap(
+      analyzerId =>
+        context.observations.get(analyzerId) ?? []
+    );
+  }
+
+  private async analyzeRecursive(
+    analyzerId: string,
+    threadId: string,
+    context: AnalyzerContext,
+    observationQuery: PostgresObservationQuery
+  ): Promise<Observation[]> {
+    const cached =
+      context.observations.get(analyzerId);
+
+    if (cached) {
+      return cached;
+    }
+
+    const analyzer =
+      this.analyzerMap.get(analyzerId);
+
+    if (!analyzer) {
+      throw new Error(
+        `Unknown analyzer '${analyzerId}'.`
+      );
+    }
+
+    for (const dependency of analyzer.dependsOn) {
+      await this.analyzeRecursive(
+        dependency,
+        threadId,
+        context,
+        observationQuery
+      );
+    }
+
+    const existing =
+      await observationQuery.list({
+        analyzerId,
+        analyzerVersion: analyzer.version,
+      });
+
+    if (existing.length > 0) {
+      context.observations.set(
+        analyzerId,
+        existing
+      );
+
+      return existing;
+    }
+
+    const observations =
+      await analyzer.analyze(context);
+
+    await this.repository.saveAll({
+      threadId,
+      observations,
+    });
+
+    context.observations.set(
+      analyzerId,
+      observations
+    );
+
+    return observations;
   }
 }

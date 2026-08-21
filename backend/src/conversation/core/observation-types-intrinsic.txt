@@ -115,35 +115,35 @@ Participation
 
 Who participated, when, and where.
 
-participation.user.posts
+participation.participant.posts
 
-participation.user.post-share
+participation.participant.post-share
 
-participation.user.reply-count
+participation.participant.reply-count
 
-participation.user.received-replies
+participation.participant.received-replies
 
-participation.user.unique-replies
+participation.participant.unique-replies
 
-participation.user.unique-responders
+participation.participant.unique-responders
 
-participation.user.branch-count
+participation.participant.branch-count
 
-participation.user.first-post
+participation.participant.first-post
 
-participation.user.last-post
+participation.participant.last-post
 
-participation.user.active-duration
+participation.participant.active-duration
 
-participation.user.average-depth
+participation.participant.average-depth
 
-participation.user.average-response-time
+participation.participant.average-response-time
 
-participation.user.response-latency
+participation.participant.response-latency
 
-participation.user.initiated-branches
+participation.participant.initiated-branches
 
-participation.user.join-order
+participation.participant.join-order
 
 Thread
 
@@ -186,15 +186,15 @@ temporal.branch.activity
 
 
 
-graph.user.degree
+graph.participant.degree
 
-graph.user.betweenness
+graph.participant.betweenness
 
-graph.user.closeness
+graph.participant.closeness
 
-graph.user.eigenvector
+graph.participant.eigenvector
 
-graph.user.pagerank
+graph.participant.pagerank
 
 graph.thread.diameter
 

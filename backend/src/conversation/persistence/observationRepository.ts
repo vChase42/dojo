@@ -1,9 +1,9 @@
 // src/conversation/persistence/observationRepository.ts
 
 import { Pool } from "pg";
-import { Observation } from "../core/types";
+import { Observation, ObservationRepository as ObservationRepositoryI, ObservationSubjectType } from "../core/types";
 
-export class ObservationRepository {
+export class ObservationRepository implements ObservationRepositoryI{
   constructor(private readonly pg: Pool) {}
 
   async saveAll(params: {
@@ -86,42 +86,61 @@ export class ObservationRepository {
     }
   }
 
-  async delete(params: {
-    threadId: string;
+async delete(params: {
+  threadId: string;
 
-    analyzerId?: string;
-    analyzerVersion?: string;
+  subjectType?: ObservationSubjectType;
+  subjectId?: string;
 
-    type?: string;
-  }): Promise<void> {
-    const values: unknown[] = [];
-    const where: string[] = [];
+  type?: string;
 
-    values.push(params.threadId);
-    where.push(`thread_id = $${values.length}`);
+  analyzerId?: string;
+  analyzerIds?: string[];
+  analyzerVersion?: string;
+}): Promise<void> {
+  const values: unknown[] = [];
+  const where: string[] = [];
 
-    if (params.analyzerId) {
-      values.push(params.analyzerId);
-      where.push(`analyzer_id = $${values.length}`);
-    }
+  values.push(params.threadId);
+  where.push(`thread_id = $${values.length}`);
 
-    if (params.analyzerVersion) {
-      values.push(params.analyzerVersion);
-      where.push(`analyzer_version = $${values.length}`);
-    }
-
-    if (params.type) {
-      values.push(params.type);
-      where.push(`type = $${values.length}`);
-    }
-
-    await this.pg.query(
-      `
-      DELETE
-      FROM conversation_observations
-      WHERE ${where.join(" AND ")}
-      `,
-      values
-    );
+  if (params.subjectType) {
+    values.push(params.subjectType);
+    where.push(`subject_type = $${values.length}`);
   }
+
+  if (params.subjectId) {
+    values.push(params.subjectId);
+    where.push(`subject_id = $${values.length}`);
+  }
+
+  if (params.type) {
+    values.push(params.type);
+    where.push(`type = $${values.length}`);
+  }
+
+  if (params.analyzerId) {
+    values.push(params.analyzerId);
+    where.push(`analyzer_id = $${values.length}`);
+  }
+
+  if (params.analyzerIds?.length) {
+    values.push(params.analyzerIds);
+    where.push(`analyzer_id = ANY($${values.length})`);
+  }
+
+  if (params.analyzerVersion) {
+    values.push(params.analyzerVersion);
+    where.push(`analyzer_version = $${values.length}`);
+  }
+
+  await this.pg.query(
+    `
+    DELETE
+    FROM conversation_observations
+    WHERE ${where.join(" AND ")}
+    `,
+    values
+  );
+}
 }

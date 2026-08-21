@@ -70,54 +70,54 @@ export class PostgresObservationQuery
 
   // ---------------------------------------------------------------------------
 
-  private buildQuery(
-    filter: ObservationFilter
-  ): {
-    sql: string;
-    values: unknown[];
-  } {
-    const values: unknown[] = [this.threadId];
-    const where: string[] = ["thread_id = $1"];
+private buildQuery(
+  filter: ObservationFilter
+): {
+  sql: string;
+  values: unknown[];
+} {
+  const values: unknown[] = [this.threadId];
+  const where: string[] = ["thread_id = $1"];
 
-
-    if (filter.subjectType) {
-      values.push(filter.subjectType);
-      where.push(`subject_type = $${values.length}`);
-    }
-
-    if (filter.subjectId) {
-      values.push(filter.subjectId);
-      where.push(`subject_id = $${values.length}`);
-    }
-
-    if (filter.type) {
-      values.push(filter.type);
-      where.push(`type = $${values.length}`);
-    }
-
-    if (filter.analyzerId) {
-      values.push(filter.analyzerId);
-      where.push(`analyzer_id = $${values.length}`);
-    }
-
-    if (filter.analyzerVersion) {
-      values.push(filter.analyzerVersion);
-      where.push(`analyzer_version = $${values.length}`);
-    }
-
-    return {
-      sql: `
-        SELECT *
-        FROM conversation_observations
-        ${
-          where.length > 0
-            ? `WHERE ${where.join(" AND ")}`
-            : ""
-        }
-      `,
-      values,
-    };
+  if (filter.subjectType) {
+    values.push(filter.subjectType);
+    where.push(`subject_type = $${values.length}`);
   }
+
+  if (filter.subjectId) {
+    values.push(filter.subjectId);
+    where.push(`subject_id = $${values.length}`);
+  }
+
+  if (filter.type) {
+    values.push(filter.type);
+    where.push(`type = $${values.length}`);
+  }
+
+  if (filter.analyzerId) {
+    values.push(filter.analyzerId);
+    where.push(`analyzer_id = $${values.length}`);
+  }
+
+  if (filter.analyzerIds?.length) {
+    values.push(filter.analyzerIds);
+    where.push(`analyzer_id = ANY($${values.length})`);
+  }
+
+  if (filter.analyzerVersion) {
+    values.push(filter.analyzerVersion);
+    where.push(`analyzer_version = $${values.length}`);
+  }
+
+  return {
+    sql: `
+      SELECT *
+      FROM conversation_observations
+      ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
+    `,
+    values,
+  };
+}
 
   private mapObservation(
     row: any

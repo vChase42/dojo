@@ -30,6 +30,23 @@ export interface ThreadSnapshot {
  * Observations
  * ========================================================================== */
 
+export interface ObservationRepository {
+  saveAll(params: {
+    threadId: string;
+    observations: Observation[];
+  }): Promise<void>;
+
+  delete(params: {
+    threadId: string;
+
+    analyzerId?: string;
+    analyzerVersion?: string;
+
+    type?: string;
+  }): Promise<void>;
+}
+
+
 export type ObservationSubjectType =
   | "thread"
   | "post"
@@ -78,6 +95,7 @@ export interface ObservationFilter {
     type?: string;
 
     analyzerId?: string;
+    analyzerIds?: string[];
     analyzerVersion?: string;
 }
 
@@ -105,14 +123,14 @@ export interface ObservationQuery {
  * Analysis
  * ========================================================================== */
 
-export interface AnalysisContext {
+export interface AnalyzerContext {
   snapshot: ThreadSnapshot;
 
   /**
    * Observations produced by analyzers that have already completed during
    * this analysis run.
    */
-  observations: ObservationQuery;
+  observations: Map<string, Observation[]>;
 }
 
 export interface Analyzer {
@@ -120,9 +138,10 @@ export interface Analyzer {
   version: string;
 
   observationTypes: string[];
+  dependsOn: string[];
 
   analyze(
-    context: AnalysisContext
+    context: AnalyzerContext
   ): Promise<Observation[]>;
 }
 
@@ -179,3 +198,5 @@ export interface Ranker {
     context: RankingContext
   ): Promise<RankingResult>;
 }
+
+
