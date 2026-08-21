@@ -8,6 +8,7 @@ import type {
   ObservationGraph,
   ObservationFilterState,
   Observation,
+  ObservationSubjectType,
 } from "../../types";
 
 import { ObservationList } from "./ObservationList";
@@ -20,6 +21,42 @@ type Props = {
   expanded: boolean;
   onToggle(): void;
 };
+
+function observationsBySubject(
+  observations: Observation[],
+  subject: ObservationSubjectType
+): Observation[] {
+  return observations.filter(observation => observation.subject.type === subject);
+}
+
+function ObservationPanel({
+  title,
+  subject,
+  observations,
+  filters,
+}: {
+  title: string;
+  subject: ObservationSubjectType;
+  observations: Observation[];
+  filters: ObservationFilterState;
+}) {
+  if (observations.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={`observation-panel s-${subject}`}>
+      <div className="observation-panel-title">
+        {title}
+      </div>
+
+      <ObservationList
+        observations={observations}
+        filters={filters}
+      />
+    </div>
+  );
+}
 
 export function SubjectCard({
   subject,
@@ -119,44 +156,26 @@ function renderBody(
 
     case "participant":
       return (
-        <>
-          <div className="post-content">
-            Participant
-          </div>
-
-          <ObservationList
+        <div className="post-content">
+          <ObservationPanel
+            title="Participant"
+            subject="participant"
             observations={subject.observations}
             filters={filters}
           />
-        </>
+        </div>
       );
 
     case "thread":
       return (
-        <>
-          <div className="post-content">
-            Thread
-          </div>
-
-          <ObservationList
-            observations={subject.observations}
+        <div className="post-content">
+          <ObservationPanel
+            title="Thread"
+            subject="thread"
+            observations={observationsBySubject(subject.observations,"thread")}
             filters={filters}
           />
-        </>
-      );
-
-    case "branch":
-      return (
-        <>
-          <div className="post-content">
-            Branch
-          </div>
-
-          <ObservationList
-            observations={subject.observations}
-            filters={filters}
-          />
-        </>
+        </div>
       );
   }
 }
@@ -190,10 +209,29 @@ function PostCard({
         </div>
       )}
 
-      <ObservationList
-        observations={observations}
+      {filters.includePosts && (
+      <ObservationPanel
+        title="Post"
+        subject="post"
+        observations={observationsBySubject(observations, "post")}
         filters={filters}
-      />
+      />)}
+
+      {filters.includeBranches && (
+        <ObservationPanel
+          title="Branch"
+          subject="branch"
+          observations={observationsBySubject(observations, "branch")}
+          filters={filters}
+        />
+      )}
+
+      {filters.includePaths && (<ObservationPanel
+        title="Path"
+        subject="path"
+        observations={observationsBySubject(observations, "path")}
+        filters={filters}
+      />)}
     </div>
   );
 }
@@ -236,7 +274,9 @@ function EdgeCard({
         </>
       )}
 
-      <ObservationList
+      <ObservationPanel
+        title="Edge"
+        subject="edge"
         observations={observations}
         filters={filters}
       />

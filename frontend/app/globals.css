@@ -54,4 +54,18 @@ body {
   --orange: #004f4f;
   --gray: #2e2e2e;
   --silver: #7e7e7e;
+
+
+  --subject-thread: hsl(140, 28%, 13%);
+  --subject-post: var(--post-background);
+  --subject-edge: hsl(45, 28%, 13%);
+  --subject-participant: hsl(320, 24%, 13%);
+  --subject-branch: hsl(270, 28%, 13%);
+  --subject-path: hsl(0, 28%, 13%);
+
+  /* --subject-thread: hsl(145, 32%, 15%);
+  --subject-edge: hsl(45, 32%, 15%);
+  --subject-participant: hsl(330, 30%, 15%);
+  --subject-branch: hsl(270, 32%, 15%);
+  --subject-path: hsl(5, 32%, 15%); */
 }

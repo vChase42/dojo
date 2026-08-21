@@ -3,7 +3,6 @@ import type {
   Observation,
   ObservationGraph,
   ObservationTreeNode,
-  ObservationSubjectType,
 } from "../../types";
 
 type GraphDto = {
@@ -25,22 +24,12 @@ export function buildObservationGraph(
     posts.set(post.id, post);
   }
 
-  const observationsBySubject = new Map<
-    ObservationSubjectType,
-    Map<string, Observation[]>
-  >();
+  const observationsById = new Map<string, Observation[]>();
 
   for (const observation of observations) {
-    let byId = observationsBySubject.get(observation.subject.type);
-
-    if (!byId) {
-      byId = new Map();
-      observationsBySubject.set(observation.subject.type, byId);
-    }
-
-    const list = byId.get(observation.subject.id) ?? [];
+    const list = observationsById.get(observation.subject.id) ?? [];
     list.push(observation);
-    byId.set(observation.subject.id, list);
+    observationsById.set(observation.subject.id, list);
   }
 
   const childrenByPost = new Map<string, GraphPost[]>();
@@ -63,28 +52,33 @@ export function buildObservationGraph(
 
   const rootPosts = graph.nodes.filter(post => !hasParent.has(post.id));
 
-
-    const root: ObservationTreeNode = {
+  const root: ObservationTreeNode = {
     subject: {
       key: `thread:${graph.threadId}`,
       type: "thread",
       id: graph.threadId,
-      observations:
-        observationsBySubject.get("thread")?.get(graph.threadId) ?? [],
+      observations: observationsById.get(graph.threadId) ?? [],
     },
     children: [],
   };
 
-  const participants =
-    observationsBySubject.get("participant") ?? new Map();
+  for (const observation of observations) {
+    if (observation.subject.type !== "participant") {
+      continue;
+    }
 
-  for (const [participantId, observations] of participants) {
+    const participantId = observation.subject.id;
+
+    if (root.children.some(child => child.subject.id === participantId)) {
+      continue;
+    }
+
     root.children.push({
       subject: {
         key: `participant:${participantId}`,
         type: "participant",
         id: participantId,
-        observations,
+        observations: observationsById.get(participantId) ?? [],
       },
       children: [],
     });
@@ -96,7 +90,7 @@ export function buildObservationGraph(
         post,
         posts,
         childrenByPost,
-        observationsBySubject
+        observationsById
       )
     );
   }
@@ -107,19 +101,18 @@ export function buildObservationGraph(
   };
 }
 
-
 function buildPostNode(
   post: GraphPost,
   posts: Map<string, GraphPost>,
   childrenByPost: Map<string, GraphPost[]>,
-  observationsBySubject: Map<ObservationSubjectType, Map<string, Observation[]>>
+  observationsById: Map<string, Observation[]>
 ): ObservationTreeNode {
   const node: ObservationTreeNode = {
     subject: {
       key: `post:${post.id}`,
       type: "post",
       id: post.id,
-      observations: observationsBySubject.get("post")?.get(post.id) ?? [],
+      observations: observationsById.get(post.id) ?? [],
       renderPayload: post,
     },
     children: [],
@@ -135,7 +128,7 @@ function buildPostNode(
         key: `edge:${edgeId}`,
         type: "edge",
         id: edgeId,
-        observations: observationsBySubject.get("edge")?.get(edgeId) ?? [],
+        observations: observationsById.get(edgeId) ?? [],
         renderPayload: {
           parentId: post.id,
           childId: child.id,
@@ -146,7 +139,7 @@ function buildPostNode(
           child,
           posts,
           childrenByPost,
-          observationsBySubject
+          observationsById
         ),
       ],
     });

@@ -84,13 +84,24 @@ function includeSubject(
   switch (type) {
     case "thread":
       return filters.includeThread;
+
     case "post":
-      return filters.includePosts;
+      return (
+        filters.includePosts ||
+        filters.includeBranches ||
+        filters.includePaths
+      );
+
     case "edge":
       return filters.includeEdges;
+
     case "participant":
       return filters.includeParticipants;
+
     case "branch":
-      return filters.includeBranches;
+      return false;
+
+    case "path":
+      return false;
   }
 }
