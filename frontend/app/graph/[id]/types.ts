@@ -5,6 +5,7 @@ import { Post } from "@/app/types";
 export interface AnalyzerDescriptor {
   id: string;
   name: string;
+  version: string; //stub
   observationTypes: string[];
 }
 
@@ -21,13 +22,14 @@ export interface RankerDescriptor {
 
 
 export interface ObservationFilterState {
-  types: string[];
+  enabledTypes: Set<string>;
 
   includeThread: boolean;
   includePosts: boolean;
   includeEdges: boolean;
   includeParticipants: boolean;
   includeBranches: boolean;
+  includePaths: boolean;
 
   showAuthor: boolean;
   showContent: boolean;
@@ -39,7 +41,8 @@ export type ObservationSubjectType =
   | "post"
   | "edge"
   | "participant"
-  | "branch";
+  | "branch"
+  | "path";
 
 export interface ObservationSubject {
   type: ObservationSubjectType;
@@ -62,14 +65,14 @@ export interface Observation<
 }
 
 export interface ObservationGroup {
-  type: string;
+  namespace: string;
   observations: Observation[];
 }
 
 export interface GraphPost {
   id: string;
-  authorId: string;
-  body: string;
+  authorIri: string;
+  content: string;
   createdAt: string;
   parentId: string;
 }
@@ -79,7 +82,7 @@ export interface GraphSubject {
   type: ObservationSubjectType;
   id: string;
   observations: Observation[];
-  payload?: unknown;
+  renderPayload?: unknown;
 }
 
 export interface ObservationTreeNode {

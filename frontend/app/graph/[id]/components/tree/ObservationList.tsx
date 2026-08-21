@@ -16,8 +16,8 @@ export function ObservationList({
 }: ObservationListProps) {
   const visible = observations.filter(
     observation =>
-      filters.types.length === 0 ||
-      filters.types.includes(observation.type)
+      filters.enabledTypes.size === 0 ||
+      filters.enabledTypes.has(observation.type)
   );
 
   if (!filters.showEmpty && visible.length === 0) {

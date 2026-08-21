@@ -98,7 +98,7 @@ function renderBody(
     case "post":
       return (
         <PostCard
-          post={subject.payload as GraphPost}
+          post={subject.renderPayload as GraphPost}
           observations={subject.observations}
           filters={filters}
         />
@@ -107,7 +107,7 @@ function renderBody(
     case "edge":
       return (
         <EdgeCard
-          edge={subject.payload as {
+          edge={subject.renderPayload as {
             parentId: string;
             childId: string;
           }}
@@ -178,15 +178,15 @@ function PostCard({
 }) {
   return (
     <div className="post-content">
-      {filters.showAuthor && (
+      {(filters.showAuthor && post.authorIri) && (
         <div className="post-author">
-          {cleanAuthorId(post.authorId)}
+          {cleanAuthorId(post.authorIri)}
         </div>
       )}
 
       {filters.showContent && (
         <div className="post-body">
-          {post.body}
+          {post.content}
         </div>
       )}
 
@@ -218,21 +218,21 @@ function EdgeCard({
   let parentAuthor = "";
   let childAuthor = "";
 
-  if (filters.showAuthor && parent?.authorId) {
-    parentAuthor = cleanAuthorId(parent.authorId) + ": ";
+  if (filters.showAuthor && parent?.authorIri) {
+    parentAuthor = cleanAuthorId(parent.authorIri) + ": ";
   }
 
-  if (filters.showAuthor && child?.authorId) {
-    childAuthor = cleanAuthorId(child.authorId) + ": ";
+  if (filters.showAuthor && child?.authorIri) {
+    childAuthor = cleanAuthorId(child.authorIri) + ": ";
   }
 
   return (
     <div className="post-content">
       {filters.showContent && (
         <>
-          <div>{parentAuthor}{parent?.body}</div>
+          <div>{parentAuthor}{parent?.content}</div>
           <hr />
-          <div>{childAuthor}{child?.body}</div>
+          <div>{childAuthor}{child?.content}</div>
         </>
       )}
 

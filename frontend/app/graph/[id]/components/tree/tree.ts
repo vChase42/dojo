@@ -120,7 +120,7 @@ function buildPostNode(
       type: "post",
       id: post.id,
       observations: observationsBySubject.get("post")?.get(post.id) ?? [],
-      payload: post,
+      renderPayload: post,
     },
     children: [],
   };
@@ -136,7 +136,7 @@ function buildPostNode(
         type: "edge",
         id: edgeId,
         observations: observationsBySubject.get("edge")?.get(edgeId) ?? [],
-        payload: {
+        renderPayload: {
           parentId: post.id,
           childId: child.id,
         },

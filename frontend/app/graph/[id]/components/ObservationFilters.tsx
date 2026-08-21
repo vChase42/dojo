@@ -14,6 +14,7 @@ const SUBJECTS = [
   { key: "includeEdges", label: "Edges" },
   { key: "includeParticipants", label: "Participants" },
   { key: "includeBranches", label: "Branches" },
+  { key: "includePaths", label: "Paths" },
 ] as const;
 
 export function ObservationFilters({
@@ -29,11 +30,26 @@ export function ObservationFilters({
   }
 
   function toggleType(type: string) {
+    const enabledTypes = new Set(filters.enabledTypes);
+
+    if (enabledTypes.has(type)) {
+      enabledTypes.delete(type);
+    } else {
+      enabledTypes.add(type);
+    }
+
     update({
-      types: filters.types.includes(type)
-        ? filters.types.filter(t => t !== type)
-        : [...filters.types, type],
+      enabledTypes,
     });
+  }
+
+  const namespaces = new Map<string, string[]>();
+
+  for (const type of types) {
+    const namespace = type.split(".").slice(0, 2).join(".");
+    const list = namespaces.get(namespace) ?? [];
+    list.push(type);
+    namespaces.set(namespace, list);
   }
 
   return (
@@ -122,21 +138,31 @@ export function ObservationFilters({
 
       <div className="graph-section">
         <div className="graph-section-title">
-          Observation Types
+          Observation Namespaces
         </div>
 
-        <div className="graph-list">
-          {types.map(type => (
-            <label key={type}>
-              <input
-                type="checkbox"
-                checked={filters.types.includes(type)}
-                onChange={() => toggleType(type)}
-              />
-              {type}
-            </label>
+        {[...namespaces.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([namespace, namespaceTypes]) => (
+            <div key={namespace} className="mb-3">
+              <div className="graph-section-title">
+                {namespace}
+              </div>
+
+              <div className="graph-list">
+                {namespaceTypes.map(type => (
+                  <label key={type}>
+                    <input
+                      type="checkbox"
+                      checked={filters.enabledTypes.has(type)}
+                      onChange={() => toggleType(type)}
+                    />
+                    {type.split(".").at(-1)}
+                  </label>
+                ))}
+              </div>
+            </div>
           ))}
-        </div>
       </div>
     </>
   );

@@ -85,9 +85,9 @@ async graph(req: Request, res: Response): Promise<void> {
         nodes.push({
             id: post.id,
             parentId: post.parentId,
-            authorId: post.authorIri,
+            authorIri: post.authorIri,
             createdAt: post.createdAt,
-            body: post.content,
+            content: post.content,
         });
 
         if (post.parentId) {

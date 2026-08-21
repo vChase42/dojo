@@ -58,13 +58,14 @@ export default function GraphPage() {
   const [view, setView] = useState<GraphViewMode>("observations");
 
   const [filters, setFilters] = useState<ObservationFilterState>({
-    types: [],
+    enabledTypes: new Set<string>(),
 
     includeThread: true,
     includePosts: true,
     includeEdges: true,
     includeParticipants: true,
     includeBranches: true,
+    includePaths: true,
 
     showAuthor: true,
     showContent: true,
