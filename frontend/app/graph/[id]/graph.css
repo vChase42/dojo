@@ -386,3 +386,19 @@
   text-transform: uppercase;
   letter-spacing: .05em;
 }
+
+
+.expandable-button {
+  appearance: none;
+  margin-left: .25rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.expandable-button:hover {
+  text-decoration: underline;
+}

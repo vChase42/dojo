@@ -29,6 +29,8 @@ function observationsBySubject(
   return observations.filter(observation => observation.subject.type === subject);
 }
 
+
+
 function ObservationPanel({
   title,
   subject,
@@ -70,6 +72,9 @@ export function SubjectCard({
 
   const [showAuthor, setShowAuthor] = useState<boolean | null>(null);
   const [showContent, setShowContent] = useState<boolean | null>(null);
+  const [expandedContent, setExpandedContent] = useState(false);
+
+
 
   useEffect(() => {
     if (!hovered) return;
@@ -84,6 +89,10 @@ export function SubjectCard({
         case "c":
           e.preventDefault();
           setShowContent(current => current == null ? !filters.showContent : !current);
+          break;
+        case "e":
+          e.preventDefault();
+          setExpandedContent(current => !current);
           break;
       }
     }
@@ -119,17 +128,19 @@ export function SubjectCard({
             </button>
           )}
         </div>
+        {subject.type}
       </div>
 
-      {renderBody(subject, graph, localFilters)}
+      {renderBody(subject, graph, localFilters,expandedContent,() => setExpandedContent(current => !current))}
     </article>
   );
 }
-
 function renderBody(
   subject: GraphSubject,
   graph: ObservationGraph,
-  filters: ObservationFilterState
+  filters: ObservationFilterState,
+  expandedContent: boolean,
+  onToggleContent: () => void
 ) {
   switch (subject.type) {
     case "post":
@@ -138,6 +149,8 @@ function renderBody(
           post={subject.renderPayload as GraphPost}
           observations={subject.observations}
           filters={filters}
+          expandedContent={expandedContent}
+          onToggleContent={onToggleContent}
         />
       );
 
@@ -151,6 +164,8 @@ function renderBody(
           graph={graph}
           observations={subject.observations}
           filters={filters}
+          expandedContent={expandedContent}
+          onToggleContent={onToggleContent}
         />
       );
 
@@ -172,7 +187,7 @@ function renderBody(
           <ObservationPanel
             title="Thread"
             subject="thread"
-            observations={observationsBySubject(subject.observations,"thread")}
+            observations={observationsBySubject(subject.observations, "thread")}
             filters={filters}
           />
         </div>
@@ -186,26 +201,59 @@ const cleanAuthorId = (id: string) => {
   return id;
 };
 
+const CONTENT_PREVIEW_LENGTH = 50;
+
+function renderContent(content: string, expanded: boolean): string {
+  if (expanded) return content;
+
+  const paragraph = content.indexOf("\n\n");
+  return content.slice(0, Math.min(content.length, CONTENT_PREVIEW_LENGTH, paragraph === -1 ? content.length : paragraph));
+}
+
+function shouldShowExpandButton(
+  content: string,
+  expanded: boolean
+): boolean {
+  return content.length > CONTENT_PREVIEW_LENGTH;
+}
+
 function PostCard({
   post,
   observations,
   filters,
+  expandedContent,
+  onToggleContent,
 }: {
   post: GraphPost;
   observations: Observation[];
   filters: ObservationFilterState;
+  expandedContent: boolean;
+  onToggleContent(): void;
 }) {
   return (
     <div className="post-content">
-      {(filters.showAuthor && post.authorIri) && (
-        <div className="post-author">
-          {cleanAuthorId(post.authorIri)}
-        </div>
-      )}
-
       {filters.showContent && (
         <div className="post-body">
-          {post.content}
+          {filters.showAuthor && post.authorIri && (
+            <>
+              <span className="post-author">
+                {cleanAuthorId(post.authorIri)}
+              </span>
+              {": "}
+            </>
+          )}
+
+          {renderContent(post.content, expandedContent)}
+
+          {shouldShowExpandButton(post.content, expandedContent) && (
+            <button
+              type="button"
+              className="expandable-button"
+              onClick={onToggleContent}
+            >
+              [...]
+            </button>
+          )}
         </div>
       )}
 
@@ -241,6 +289,8 @@ function EdgeCard({
   graph,
   observations,
   filters,
+  expandedContent,
+  onToggleContent,
 }: {
   edge: {
     parentId: string;
@@ -249,6 +299,8 @@ function EdgeCard({
   graph: ObservationGraph;
   observations: Observation[];
   filters: ObservationFilterState;
+  expandedContent: boolean;
+  onToggleContent(): void;
 }) {
   const parent = graph.posts.get(edge.parentId);
   const child = graph.posts.get(edge.childId);
@@ -268,10 +320,37 @@ function EdgeCard({
     <div className="post-content">
       {filters.showContent && (
         <>
-          <div>{parentAuthor}{parent?.content}</div>
+<div>
+  {parentAuthor}
+  {parent && renderContent(parent.content, expandedContent)}
+
+  {parent &&
+    shouldShowExpandButton(parent.content, expandedContent) && (
+      <button
+        type="button"
+        className="expandable-button"
+        onClick={onToggleContent}
+      >
+        [...]
+      </button>
+    )}
+</div>
           <hr />
-          <div>{childAuthor}{child?.content}</div>
-        </>
+<div>
+  {childAuthor}
+  {child && renderContent(child.content, expandedContent)}
+
+  {child &&
+    shouldShowExpandButton(child.content, expandedContent) && (
+      <button
+        type="button"
+        className="expandable-button"
+        onClick={onToggleContent}
+      >
+        [...]
+      </button>
+    )}
+</div>        </>
       )}
 
       <ObservationPanel
