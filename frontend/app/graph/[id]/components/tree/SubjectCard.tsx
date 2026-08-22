@@ -137,6 +137,7 @@ function renderBody(
     case "participant":
       return (
         <div className="post-content">
+          {(subject.renderPayload as {authorIri: string;}).authorIri}
           <ObservationPanel title="Participant" subject="participant" observations={subject.observations} filters={filters} />
         </div>
       );

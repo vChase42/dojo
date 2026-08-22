@@ -62,6 +62,11 @@ export function buildObservationGraph(
     children: [],
   };
 
+
+  const authorIriByParticipant = new Map<string, string>();
+  for (const post of graph.nodes) {
+    authorIriByParticipant.set(post.authorIri, post.authorIri);
+  }
   for (const observation of observations) {
     if (observation.subject.type !== "participant") {
       continue;
@@ -79,6 +84,9 @@ export function buildObservationGraph(
         type: "participant",
         id: participantId,
         observations: observationsById.get(participantId) ?? [],
+        renderPayload: {
+          authorIri: authorIriByParticipant.get(participantId),
+        },
       },
       children: [],
     });
