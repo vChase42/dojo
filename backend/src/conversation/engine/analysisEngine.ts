@@ -65,34 +65,33 @@ export class AnalysisEngine {
     observationQuery: PostgresObservationQuery
   ): Promise<Observation[]> {
     const cached = context.observations.get(analyzerId);
-
     if (cached) {
       return cached;
     }
-
-    const analyzer = analyzerMap.get(analyzerId);
-
-    if (!analyzer) {
-      throw new Error(`Unknown analyzer '${analyzerId}'.`);
-    }
-
-    for (const dependency of analyzer.dependsOn) {
-      await this.analyzeRecursive(dependency, threadId, context, observationQuery);
-    }
-
-    const existing = await observationQuery.list({
-      analyzerId,
-      analyzerVersion: analyzer.version,
-    });
-
-    if (existing.length > 0) {
-      context.observations.set(analyzerId, existing);
-      return existing;
-    }
-
-    const observations = await analyzer.analyze(context);
-
-    await this.repository.saveAll({
+      
+      const analyzer = analyzerMap.get(analyzerId);
+      
+      if (!analyzer) {
+        throw new Error(`Unknown analyzer '${analyzerId}'.`);
+      }
+      
+      for (const dependency of analyzer.dependsOn) {
+        await this.analyzeRecursive(dependency, threadId, context, observationQuery);
+      }
+      
+      const existing = await observationQuery.list({
+        analyzerId,
+        analyzerVersion: analyzer.version,
+      });
+      
+      // if (existing.length > 0) {
+      //   context.observations.set(analyzerId, existing);
+      //   return existing;
+      // }
+      
+      const observations = await analyzer.analyze(context);
+      
+      await this.repository.saveAll({
       threadId,
       observations,
     });

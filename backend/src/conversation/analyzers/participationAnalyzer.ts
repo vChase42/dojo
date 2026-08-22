@@ -38,6 +38,7 @@ export class ParticipationAnalyzer implements Analyzer {
   ];
 
   async analyze(context: AnalyzerContext): Promise<Observation[]> {
+
     const { snapshot, observations: analyzerObservations } = context;
 
     const observations: Observation[] = [];
@@ -156,7 +157,7 @@ export class ParticipationAnalyzer implements Analyzer {
         postsByParticipant.get(participant) ?? [];
 
       const firstPost = posts[0];
-      const lastPost = posts[-1];
+      const lastPost = posts[posts.length - 1];
 
       const averageDepth =
         posts.length === 0
