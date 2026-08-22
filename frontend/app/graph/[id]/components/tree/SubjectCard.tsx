@@ -22,40 +22,22 @@ type Props = {
   onToggle(): void;
 };
 
-function observationsBySubject(
-  observations: Observation[],
-  subject: ObservationSubjectType
-): Observation[] {
+function observationsBySubject(observations: Observation[], subject: ObservationSubjectType): Observation[] {
   return observations.filter(observation => observation.subject.type === subject);
 }
 
-
-
-function ObservationPanel({
-  title,
-  subject,
-  observations,
-  filters,
-}: {
+function ObservationPanel({ title, subject, observations, filters }: {
   title: string;
   subject: ObservationSubjectType;
   observations: Observation[];
   filters: ObservationFilterState;
 }) {
-  if (observations.length === 0) {
-    return null;
-  }
+  if (observations.length === 0) return null;
 
   return (
     <div className={`observation-panel s-${subject}`}>
-      <div className="observation-panel-title">
-        {title}
-      </div>
-
-      <ObservationList
-        observations={observations}
-        filters={filters}
-      />
+      <div className="observation-panel-title">{title}</div>
+      <ObservationList observations={observations} filters={filters} />
     </div>
   );
 }
@@ -69,12 +51,9 @@ export function SubjectCard({
   onToggle,
 }: Props) {
   const [hovered, setHovered] = useState(false);
-
   const [showAuthor, setShowAuthor] = useState<boolean | null>(null);
   const [showContent, setShowContent] = useState<boolean | null>(null);
   const [expandedContent, setExpandedContent] = useState(false);
-
-
 
   useEffect(() => {
     if (!hovered) return;
@@ -85,7 +64,6 @@ export function SubjectCard({
           e.preventDefault();
           setShowAuthor(current => current == null ? !filters.showAuthor : !current);
           break;
-
         case "c":
           e.preventDefault();
           setShowContent(current => current == null ? !filters.showContent : !current);
@@ -101,29 +79,18 @@ export function SubjectCard({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [hovered, filters.showAuthor, filters.showContent]);
 
-  const localFilters = useMemo(
-    () => ({
-      ...filters,
-      showAuthor: showAuthor ?? filters.showAuthor,
-      showContent: showContent ?? filters.showContent,
-    }),
-    [filters, showAuthor, showContent]
-  );
+  const localFilters = useMemo(() => ({
+    ...filters,
+    showAuthor: showAuthor ?? filters.showAuthor,
+    showContent: showContent ?? filters.showContent,
+  }), [filters, showAuthor, showContent]);
 
   return (
-    <article
-      className="post"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <article className="post" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <div className="post-meta">
         <div className="toggle-expand-button">
           {expandable && (
-            <button
-              type="button"
-              className="post-collapse"
-              onClick={onToggle}
-            >
+            <button type="button" className="post-collapse" onClick={onToggle}>
               {expanded ? "-" : "+"}
             </button>
           )}
@@ -131,10 +98,11 @@ export function SubjectCard({
         {subject.type}
       </div>
 
-      {renderBody(subject, graph, localFilters,expandedContent,() => setExpandedContent(current => !current))}
+      {renderBody(subject, graph, localFilters, expandedContent, () => setExpandedContent(current => !current))}
     </article>
   );
 }
+
 function renderBody(
   subject: GraphSubject,
   graph: ObservationGraph,
@@ -157,10 +125,7 @@ function renderBody(
     case "edge":
       return (
         <EdgeCard
-          edge={subject.renderPayload as {
-            parentId: string;
-            childId: string;
-          }}
+          edge={subject.renderPayload as { parentId: string; childId: string; }}
           graph={graph}
           observations={subject.observations}
           filters={filters}
@@ -172,24 +137,14 @@ function renderBody(
     case "participant":
       return (
         <div className="post-content">
-          <ObservationPanel
-            title="Participant"
-            subject="participant"
-            observations={subject.observations}
-            filters={filters}
-          />
+          <ObservationPanel title="Participant" subject="participant" observations={subject.observations} filters={filters} />
         </div>
       );
 
     case "thread":
       return (
         <div className="post-content">
-          <ObservationPanel
-            title="Thread"
-            subject="thread"
-            observations={observationsBySubject(subject.observations, "thread")}
-            filters={filters}
-          />
+          <ObservationPanel title="Thread" subject="thread" observations={observationsBySubject(subject.observations, "thread")} filters={filters} />
         </div>
       );
   }
@@ -205,17 +160,14 @@ const CONTENT_PREVIEW_LENGTH = 50;
 
 function renderContent(content: string, expanded: boolean): string {
   if (expanded) return content;
-
   const paragraph = content.indexOf("\n\n");
   return content.slice(0, Math.min(content.length, CONTENT_PREVIEW_LENGTH, paragraph === -1 ? content.length : paragraph));
 }
 
-function shouldShowExpandButton(
-  content: string,
-  expanded: boolean
-): boolean {
+function shouldShowExpandButton(content: string, expanded: boolean): boolean {
   return content.length > CONTENT_PREVIEW_LENGTH;
 }
+
 
 function PostCard({
   post,
@@ -230,27 +182,19 @@ function PostCard({
   expandedContent: boolean;
   onToggleContent(): void;
 }) {
+  const author = filters.showAuthor && post.authorIri ? cleanAuthorId(post.authorIri) : "";
+  const content = filters.showContent ? renderContent(post.content, expandedContent) : "";
+
   return (
     <div className="post-content">
-      {filters.showContent && (
+      {(filters.showAuthor || filters.showContent) && (
         <div className="post-body">
-          {filters.showAuthor && post.authorIri && (
-            <>
-              <span className="post-author">
-                {cleanAuthorId(post.authorIri)}
-              </span>
-              {": "}
-            </>
-          )}
-
-          {renderContent(post.content, expandedContent)}
+          {author}
+          {author && content && ": "}
+          {content}
 
           {shouldShowExpandButton(post.content, expandedContent) && (
-            <button
-              type="button"
-              className="expandable-button"
-              onClick={onToggleContent}
-            >
+            <button type="button" className="expandable-button" onClick={onToggleContent}>
               [...]
             </button>
           )}
@@ -258,12 +202,13 @@ function PostCard({
       )}
 
       {filters.includePosts && (
-      <ObservationPanel
-        title="Post"
-        subject="post"
-        observations={observationsBySubject(observations, "post")}
-        filters={filters}
-      />)}
+        <ObservationPanel
+          title="Post"
+          subject="post"
+          observations={observationsBySubject(observations, "post")}
+          filters={filters}
+        />
+      )}
 
       {filters.includeBranches && (
         <ObservationPanel
@@ -274,12 +219,14 @@ function PostCard({
         />
       )}
 
-      {filters.includePaths && (<ObservationPanel
-        title="Path"
-        subject="path"
-        observations={observationsBySubject(observations, "path")}
-        filters={filters}
-      />)}
+      {filters.includePaths && (
+        <ObservationPanel
+          title="Path"
+          subject="path"
+          observations={observationsBySubject(observations, "path")}
+          filters={filters}
+        />
+      )}
     </div>
   );
 }
@@ -305,60 +252,43 @@ function EdgeCard({
   const parent = graph.posts.get(edge.parentId);
   const child = graph.posts.get(edge.childId);
 
-  let parentAuthor = "";
-  let childAuthor = "";
+  const parentAuthor = filters.showAuthor && parent?.authorIri ? cleanAuthorId(parent.authorIri) : "";
+  const childAuthor = filters.showAuthor && child?.authorIri ? cleanAuthorId(child.authorIri) : "";
 
-  if (filters.showAuthor && parent?.authorIri) {
-    parentAuthor = cleanAuthorId(parent.authorIri) + ": ";
-  }
-
-  if (filters.showAuthor && child?.authorIri) {
-    childAuthor = cleanAuthorId(child.authorIri) + ": ";
-  }
+  const parentContent = filters.showContent && parent ? renderContent(parent.content, expandedContent) : "";
+  const childContent = filters.showContent && child ? renderContent(child.content, expandedContent) : "";
 
   return (
     <div className="post-content">
-      {filters.showContent && (
+      {(filters.showAuthor || filters.showContent) && (
         <>
-<div>
-  {parentAuthor}
-  {parent && renderContent(parent.content, expandedContent)}
+          <div>
+            {parentAuthor}
+            {parentAuthor && parentContent && ": "}
+            {parentContent}
+            {parent && shouldShowExpandButton(parent.content, expandedContent) && (
+              <button type="button" className="expandable-button" onClick={onToggleContent}>
+                [...]
+              </button>
+            )}
+          </div>
 
-  {parent &&
-    shouldShowExpandButton(parent.content, expandedContent) && (
-      <button
-        type="button"
-        className="expandable-button"
-        onClick={onToggleContent}
-      >
-        [...]
-      </button>
-    )}
-</div>
           <hr />
-<div>
-  {childAuthor}
-  {child && renderContent(child.content, expandedContent)}
 
-  {child &&
-    shouldShowExpandButton(child.content, expandedContent) && (
-      <button
-        type="button"
-        className="expandable-button"
-        onClick={onToggleContent}
-      >
-        [...]
-      </button>
-    )}
-</div>        </>
+          <div>
+            {childAuthor}
+            {childAuthor && childContent && ": "}
+            {childContent}
+            {child && shouldShowExpandButton(child.content, expandedContent) && (
+              <button type="button" className="expandable-button" onClick={onToggleContent}>
+                [...]
+              </button>
+            )}
+          </div>
+        </>
       )}
 
-      <ObservationPanel
-        title="Edge"
-        subject="edge"
-        observations={observations}
-        filters={filters}
-      />
+      <ObservationPanel title="Edge" subject="edge" observations={observations} filters={filters} />
     </div>
   );
 }
