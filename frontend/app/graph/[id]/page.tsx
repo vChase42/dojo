@@ -66,6 +66,7 @@ export default function GraphPage() {
     includeParticipants: true,
     includeBranches: true,
     includePaths: true,
+    includeSessions: true,
 
     showAuthor: true,
     showContent: true,

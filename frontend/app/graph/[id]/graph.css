@@ -350,6 +350,10 @@
   border: 1px solid var(--border);
 }
 
+.observation-panel.s-session {
+  background: var(--subject-session);
+}
+
 .observation-panel.s-thread {
   background: var(--subject-thread);
 }

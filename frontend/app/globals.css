@@ -62,6 +62,7 @@ body {
   --subject-participant: hsl(320, 24%, 13%);
   --subject-branch: hsl(270, 28%, 13%);
   --subject-path: hsl(0, 28%, 13%);
+  --subject-session: hsl(190, 28%, 13%);
 
   /* --subject-thread: hsl(145, 32%, 15%);
   --subject-edge: hsl(45, 32%, 15%);

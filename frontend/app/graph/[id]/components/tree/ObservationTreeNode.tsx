@@ -97,11 +97,14 @@ function includeSubject(
 
     case "participant":
       return filters.includeParticipants;
-
+      
+    case "session":
+      return filters.includeSessions;
     case "branch":
       return false;
 
     case "path":
       return false;
   }
+  return false;
 }

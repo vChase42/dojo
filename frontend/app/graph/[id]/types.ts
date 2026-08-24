@@ -30,6 +30,7 @@ export interface ObservationFilterState {
   includeParticipants: boolean;
   includeBranches: boolean;
   includePaths: boolean;
+  includeSessions: boolean;
 
   showAuthor: boolean;
   showContent: boolean;

@@ -24,6 +24,16 @@ export function buildObservationGraph(
     posts.set(post.id, post);
   }
 
+  const sessionIds = new Set<string>();
+
+  for (const observation of observations) {
+    if (observation.subject.type !== "session") {
+      continue;
+    }
+    sessionIds.add(observation.subject.id);
+  }
+
+
   const observationsById = new Map<string, Observation[]>();
 
   for (const observation of observations) {
@@ -87,6 +97,18 @@ export function buildObservationGraph(
         renderPayload: {
           authorIri: authorIriByParticipant.get(participantId),
         },
+      },
+      children: [],
+    });
+  }
+
+  for (const sessionId of sessionIds) {
+    root.children.push({
+      subject: {
+        key: `session:${sessionId}`,
+        type: "session",
+        id: sessionId,
+        observations: observationsById.get(sessionId) ?? [],
       },
       children: [],
     });

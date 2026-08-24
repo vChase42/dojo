@@ -142,6 +142,20 @@ function renderBody(
         </div>
       );
 
+    case "session":
+      return (
+        <div className="post-content">
+          {subject.id}
+
+          <ObservationPanel
+            title="Session"
+            subject="session"
+            observations={subject.observations}
+            filters={filters}
+          />
+        </div>
+      );
+
     case "thread":
       return (
         <div className="post-content">

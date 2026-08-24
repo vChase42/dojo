@@ -15,6 +15,7 @@ const SUBJECTS = [
   { key: "includeParticipants", label: "Participants" },
   { key: "includeBranches", label: "Branches" },
   { key: "includePaths", label: "Paths" },
+  { key: "includeSessions", label: "Sessions" },
 ] as const;
 
 export function ObservationFilters({
