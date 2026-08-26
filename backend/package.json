@@ -5,11 +5,13 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/start.ts"
+    "dev": "nodemon src/start.ts",
+    "embeddings:test": "tsx src/conversation/persistence/embeddings/test.ts"
   },
   "dependencies": {
-    "activitypub-express": "file:./packages/activitypub-express",
+    "@huggingface/transformers": "^4.2.0",
     "@small-tech/auto-encrypt": "^4.3.0",
+    "activitypub-express": "file:./packages/activitypub-express",
     "bcrypt": "^6.0.0",
     "connect-history-api-fallback": "^2.0.0",
     "cookie-parser": "^1.4.7",
@@ -28,6 +30,7 @@
     "@types/express": "^5.0.5",
     "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "tsx": "^4.23.12"
   }
 }
