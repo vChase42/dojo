@@ -32,7 +32,7 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
         embedding.subjectId,
         embedding.modelId,
         embedding.modelVersion,
-        Array.from(embedding.values),
+        this.toVector(embedding.values),
         embedding.createdAt,
       );
 
@@ -43,7 +43,7 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
 
     await this.pool.query(
       `
-        INSERT INTO embeddings (
+        INSERT INTO conversation_embeddings (
           thread_id,
           subject_type,
           subject_id,
@@ -66,7 +66,7 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
     const result = await this.pool.query(
       `
         SELECT *
-        FROM embeddings
+        FROM conversation_embeddings
         ${where}
       `,
       values,
@@ -83,7 +83,7 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
     const values: unknown[] = [];
     const where = this.buildFilter(params.filter, values);
 
-    values.push(Array.from(params.embedding));
+    values.push(this.toVector(params.embedding));
     const embeddingIndex = values.length;
 
     values.push(params.limit);
@@ -92,7 +92,7 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
     const result = await this.pool.query(
       `
         SELECT *
-        FROM embeddings
+        FROM conversation_embeddings
         ${where}
         ORDER BY embedding <-> $${embeddingIndex}
         LIMIT $${limitIndex}
@@ -135,7 +135,7 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
     subject_id: string;
     model_id: string;
     model_version: string;
-    embedding: number[];
+    embedding: string;
     created_at: Date;
   }): Embedding {
     return {
@@ -144,8 +144,17 @@ export class EmbeddingPostgresRepository implements EmbeddingRepository {
       subjectId: row.subject_id,
       modelId: row.model_id,
       modelVersion: row.model_version,
-      values: Float32Array.from(row.embedding),
+      values: Float32Array.from(
+        row.embedding
+          .slice(1, -1)
+          .split(",")
+          .map(Number),
+      ),
       createdAt: row.created_at,
     };
+  }
+
+  private toVector(values: Float32Array): string {
+    return `[${Array.from(values).join(",")}]`;
   }
 }

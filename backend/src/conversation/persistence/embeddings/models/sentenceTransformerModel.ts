@@ -21,6 +21,20 @@ export class SentenceTransformerModel implements EmbeddingModel {
     this.id = id;
   }
 
+  async initialize(): Promise<void> {
+    if (this.pipeline) {
+      return;
+    }
+
+    this.pipeline = await pipeline(
+      "feature-extraction",
+      this.id,
+      {
+        device: "cuda",
+      }
+    );
+  }
+
   async embed(text: string): Promise<Float32Array> {
     return (await this.embedMany([text]))[0];
   }
@@ -30,7 +44,7 @@ export class SentenceTransformerModel implements EmbeddingModel {
       return [];
     }
 
-    const pipe = await this.getPipeline();
+    const pipe = this.getPipeline();
 
     const tensor = await pipe(texts, {
       pooling: "mean",
@@ -63,25 +77,15 @@ export class SentenceTransformerModel implements EmbeddingModel {
     this.pipeline = undefined;
   }
 
-  private async getPipeline(): Promise<FeatureExtractionPipeline> {
+  private getPipeline(): FeatureExtractionPipeline {
     if (!this.pipeline) {
-      this.pipeline = await pipeline(
-        "feature-extraction",
-        this.id,
-        {
-          device: "cuda",
-        }
-      );
+      throw new Error("Model has not been initialized.");
     }
 
     return this.pipeline;
   }
 
   private getConfig(): any {
-    if (!this.pipeline) {
-      throw new Error("Model has not been loaded.");
-    }
-
-    return this.pipeline.model.config as any;
+    return this.getPipeline().model.config as any;
   }
 }

@@ -32,6 +32,8 @@ import { Pool as PgPool } from "pg";
 import { createDevRoutes } from "../dev/routes";
 import { DevController } from "../dev/controller";
 import { EmbeddingSchema } from "../conversation/persistence/embeddings/EmbeddingSchema";
+import { EmbeddingPostgresRepository } from "../conversation/persistence/embeddings/EmbeddingRepository";
+import { SentenceTransformerModel } from "../conversation/persistence/embeddings/models/sentenceTransformerModel";
 
 export interface Application {
   app: express.Express;
@@ -106,6 +108,10 @@ export async function createApplication(
   await embeddingSchema.initialize();
 
   const observationRepository = new ObservationRepository(pg);
+  const embeddingRepository = new EmbeddingPostgresRepository(pg);
+
+  const modelTransformer = new SentenceTransformerModel("sentence-transformers/all-MiniLM-L6-v2");
+  await modelTransformer.initialize();
 
   const snapshot =
     new ThreadSnapshotService(
@@ -117,6 +123,8 @@ export async function createApplication(
     new AnalysisEngine(
       snapshot,
       observationRepository,
+      embeddingRepository,
+      modelTransformer,
       pg
     );
 

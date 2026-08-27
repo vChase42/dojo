@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/start.ts",
+    "dev": "nodemon --exec tsx src/start.ts",
     "embeddings:test": "tsx src/conversation/persistence/embeddings/test.ts"
   },
   "dependencies": {

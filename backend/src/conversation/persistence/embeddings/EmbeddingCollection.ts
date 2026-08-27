@@ -145,4 +145,22 @@ export class EmbeddingCollection {
       modelVersion: this.model.version,
     };
   }
+
+
+  subject(subjectId: string): EmbeddableSubject {
+    const subject = this.subjects.find(subject => subject.subject.id === subjectId);
+
+    if (!subject) {
+      throw new Error(`Unknown subject "${subjectId}".`);
+    }
+
+    return subject;
+  }
+
+  text(subjectId: string): string {
+    return serializePosts(
+      this.snapshot,
+      this.subject(subjectId).postIds,
+    );
+  }
 }
