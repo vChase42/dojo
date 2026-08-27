@@ -1,6 +1,28 @@
 // src/conversation/persistence/embeddings/types.ts
 
-import { ObservationSubjectType } from "../../core/types";
+import { ObservationSubject, ObservationSubjectType } from "../../core/types";
+
+export interface EmbeddingFilter {
+  threadIds?: string[];
+  subjectIds?: string[];
+
+  modelId?: string;
+  modelVersion?: string;
+}
+
+export interface EmbeddingRepository {
+  save(embedding: Embedding): Promise<void>;
+
+  saveMany(embeddings: Embedding[]): Promise<void>;
+
+  query(filter: EmbeddingFilter): Promise<Embedding[]>;
+
+  nearest(params: {
+    filter: EmbeddingFilter;
+    embedding: Float32Array;
+    limit: number;
+  }): Promise<Embedding[]>;
+}
 
 export interface EmbeddingModel {
   readonly id: string;
@@ -14,6 +36,8 @@ export interface EmbeddingModel {
 }
 
 export interface Embedding {
+  threadId: string;
+
   subjectType: ObservationSubjectType;
   subjectId: string;
 
@@ -38,4 +62,10 @@ export interface EmbeddingRecord {
 export interface ClusterAssignment {
   id: string;
   cluster: number;
+}
+
+
+export interface EmbeddableSubject {
+  subject: ObservationSubject;
+  postIds: string[];
 }

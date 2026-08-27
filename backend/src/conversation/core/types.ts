@@ -54,7 +54,8 @@ export type ObservationSubjectType =
   | "participant"
   | "path"
   | "session"
-  | "branch";
+  | "branch"
+  | "temporary";
 
 export interface ObservationSubject {
   type: ObservationSubjectType;

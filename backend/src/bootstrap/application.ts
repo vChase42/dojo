@@ -31,6 +31,7 @@ import { StructuralAnalyzer } from "../conversation/analyzers/structuralAnalyzer
 import { Pool as PgPool } from "pg";
 import { createDevRoutes } from "../dev/routes";
 import { DevController } from "../dev/controller";
+import { EmbeddingSchema } from "../conversation/persistence/embeddings/EmbeddingSchema";
 
 export interface Application {
   app: express.Express;
@@ -100,6 +101,9 @@ export async function createApplication(
 
   const observationSchema = new ObservationSchema(pg);
   await observationSchema.initialize();
+
+  const embeddingSchema = new EmbeddingSchema(pg);
+  await embeddingSchema.initialize();
 
   const observationRepository = new ObservationRepository(pg);
 
