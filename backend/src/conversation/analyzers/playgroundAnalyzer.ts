@@ -28,6 +28,7 @@ export class SemanticPostEmbeddingAnalyzer implements Analyzer {
   async analyze(
     context: AnalyzerContext,
   ): Promise<Observation[]> {
+    console.log("beginning playground.");
     const subjects = collectEmbeddableSubjects(
       context.snapshot,
       context.observations,
@@ -41,39 +42,36 @@ export class SemanticPostEmbeddingAnalyzer implements Analyzer {
     );
 
     await collection.initialize();
+const queries = [
+  "Who?",
+  "How does evolution work?",
+  "Can someone explain this?",
+  "I don't understand.",
+  "I agree.",
+  "I disagree.",
+  "This is a physical object.",
+  "Evolution is dumb",
+  "youre such a goober",
+  "Romance",
+  "intelligent",
+  "novel",
+  "fiushfdisjdkapowdaksufhsjfks",
+  "the ocean floor is deep and dangerous",
+];
 
-    console.log();
-    console.log("============================================================");
-    console.log("POST EMBEDDINGS");
-    console.log("============================================================");
+for (const query of queries) {
+  console.log();
+  console.log("==================================================");
+  console.log(`QUERY: ${query}`);
+  console.log("==================================================");
 
-    for (const subject of subjects) {
-      const neighbors = await collection.nearest(subject.subject.id, 5);
+  const results = await collection.query(query, 3);
 
-      console.log();
-      console.log("------------------------------------------------------------");
-      console.log(collection.text(subject.subject.id));
-
-      for (const neighbor of neighbors) {
-        if (neighbor.subjectId === subject.subject.id) {
-          continue;
-        }
-
-        console.log();
-        console.log("> --------------------------------");
-        console.log(collection.text(neighbor.subjectId));
-      }
-    }
-
-    console.log();
-    console.log("============================================================");
-    console.log('QUERY: "people asking questions"');
-    console.log("============================================================");
-
-    for (const neighbor of await collection.query("people asking questions", 10)) {
-      console.log();
-      console.log(collection.text(neighbor.subjectId));
-    }
+  for (const result of results) {
+    console.log("=====");
+    console.log(collection.text(result.subjectId));
+  }
+}
 
     return [];
   }

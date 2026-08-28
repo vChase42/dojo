@@ -127,12 +127,14 @@ export class AnalysisEngine {
       analyzerVersion: analyzer.version,
     });
 
-    // if (existing.length > 0) {
-    //   context.observations.set(analyzerId, existing);
-    //   return existing;
-    // }
+    if (existing.length > 0) {
+      context.observations.set(analyzerId, existing);
+      return existing;
+    }
 
+    const start = performance.now();
     const observations = await analyzer.analyze(context);
+    console.log(`[Analysis] ${analyzer.id} (${analyzer.version}) ${(performance.now() - start).toFixed(1)}ms`);
 
     await this.repository.saveAll({
       threadId,

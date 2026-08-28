@@ -44,6 +44,17 @@ export class SentenceTransformerModel implements EmbeddingModel {
       return [];
     }
 
+    const embeddings: Float32Array[] = [];
+    const batchSize = 32;
+
+    for (let i = 0; i < texts.length; i += batchSize) {
+      embeddings.push(...await this.embedBatch(texts.slice(i, i + batchSize)));
+    }
+
+    return embeddings;
+  }
+
+  private async embedBatch(texts: string[]): Promise<Float32Array[]> {
     const pipe = this.getPipeline();
 
     const tensor = await pipe(texts, {
@@ -61,12 +72,7 @@ export class SentenceTransformerModel implements EmbeddingModel {
     const embeddings: Float32Array[] = [];
 
     for (let i = 0; i < count; i++) {
-      embeddings.push(
-        data.slice(
-          i * dimensions,
-          (i + 1) * dimensions
-        )
-      );
+      embeddings.push(data.slice(i * dimensions, (i + 1) * dimensions));
     }
 
     return embeddings;
