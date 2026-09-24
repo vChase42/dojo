@@ -3,6 +3,66 @@
 import { RedditCorpus } from "./reddit";
 import { DojoAdapter } from "./dojo";
 
+function clip(value: string, width: number): string {
+  if (width <= 0) return "";
+  if (value.length <= width) return value.padEnd(width);
+  return width === 1 ? "…" : value.slice(0, width - 1) + "…";
+}
+function threadLine(s: ReturnType<RedditCorpus["getSubreddit"]>[number]): string {
+  const width = Math.max(60, process.stdout.columns || 100);
+  const fixed = 7 + 7 + 9 + 18;
+  const titleWidth = Math.max(20, width - fixed);
+  return `${String(s.score).padStart(6)} ${String(s.comment_count).padStart(6)} ${clip(s.id, 8)} ${clip(s.author, 17)} ${clip(s.title.replace(/\s+/g, " "), titleWidth)}`;
+}
+async function pick<T>(items: T[], title: string, render: (item: T) => string): Promise<T | undefined> {
+  if (!items.length) return undefined;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    for (const item of items) console.log(render(item));
+    return undefined;
+  }
+  let selected = 0;
+  const pageSize = Math.max(5, (process.stdout.rows || 24) - 5);
+  const draw = () => {
+    const start = Math.max(0, Math.min(selected - Math.floor(pageSize / 2), items.length - pageSize));
+    const end = Math.min(items.length, start + pageSize);
+    process.stdout.write("\x1b[2J\x1b[H");
+    process.stdout.write(`${title}  (${selected + 1}/${items.length})\n`);
+    process.stdout.write("↑/↓ move  Enter open  q/Esc back\n\n");
+    for (let i = start; i < end; i++) process.stdout.write(`${i === selected ? ">" : " "} ${render(items[i])}\n`);
+  };
+  return new Promise(resolve => {
+    const stdin = process.stdin;
+    const finish = (value?: T) => {
+      stdin.off("data", onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+      process.stdout.write("\x1b[?25h\x1b[2J\x1b[H");
+      resolve(value);
+    };
+    const onData = (data: Buffer) => {
+      const key = data.toString();
+      if (key === "\u0003") { finish(); process.exit(130); }
+      if (key === "\r" || key === "\n") return finish(items[selected]);
+      if (key === "q" || key === "\u001b") return finish();
+      if (key === "\u001b[A" || key === "k") selected = Math.max(0, selected - 1);
+      if (key === "\u001b[B" || key === "j") selected = Math.min(items.length - 1, selected + 1);
+      draw();
+    };
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", onData);
+    process.stdout.write("\x1b[?25l");
+    draw();
+  });
+}
+async function browseSubreddit(corpus: RedditCorpus, name: string): Promise<void> {
+  const threads = corpus.getSubreddit(name);
+  const selected = await pick(threads, `r/${name}  score comments id       author            title`, threadLine);
+  if (!selected) return;
+  const thread = await corpus.getThread(selected.id);
+  if (thread) console.log(corpus.renderThread(thread));
+}
+
 
 async function main() {
   const corpus = new RedditCorpus({
@@ -21,25 +81,19 @@ async function main() {
       console.table(corpus.stats());
       break;
 
-    case "subreddits":
-      console.table(corpus.listSubreddits());
+    case "subreddits": {
+      const subreddits = corpus.listSubreddits();
+      const selected = await pick(subreddits, "Subreddits  threads name", s => `${String(s.threads).padStart(7)}  ${s.name}`);
+      if (selected) await browseSubreddit(corpus, selected.name);
       break;
+    }
 
     case "subreddit": {
       if (!args.length) {
         throw new Error("Usage: subreddit <name>");
       }
 
-      console.table(
-        corpus.getSubreddit(args.join(" ")).map(s => ({
-          id: s.id,
-          comments: s.comment_count,
-          score: s.score,
-          author: s.author,
-          title: s.title,
-        }))
-      );
-
+      await browseSubreddit(corpus, args.join(" "));
       break;
     }
 
