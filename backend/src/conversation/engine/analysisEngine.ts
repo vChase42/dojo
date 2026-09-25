@@ -22,7 +22,13 @@ import { StructuralAnalyzer } from "../analyzers/structuralAnalyzer";
 import { ParticipationAnalyzer } from "../analyzers/participationAnalyzer";
 import { TemporalAnalyzerT1 } from "../analyzers/temporalAnalyzerT1";
 import { TemporalAnalyzerT2 } from "../analyzers/temporalAnalyzerT2";
-import { SemanticPostEmbeddingAnalyzer } from "../analyzers/playgroundAnalyzer";
+import { SemanticPlaygroundEmbeddingAnalyzer } from "../analyzers/semanticTestT1";
+import { SemanticSimilarityEmbeddingAnalyzer } from "../analyzers/SemanticTestT2";
+import { SemanticTest3 } from "../analyzers/semanticTestT3";
+import { SemanticTest4 } from "../analyzers/SemanticTestT4";
+import { SemanticTest5 } from "../analyzers/SemanticTestT5";
+import { SemanticTest6 } from "../analyzers/SemanticTestT6";
+import { SemanticTest7 } from "../analyzers/SemanticTestT7";
 
 export class AnalysisEngine {
   private readonly analyzers: Analyzer[];
@@ -40,10 +46,16 @@ export class AnalysisEngine {
       new ParticipationAnalyzer(),
       new TemporalAnalyzerT1(),
       new TemporalAnalyzerT2(),
-      new SemanticPostEmbeddingAnalyzer(
+      new SemanticPlaygroundEmbeddingAnalyzer(
         embeddingRepository,
         embeddingModel,
       ),
+      new SemanticSimilarityEmbeddingAnalyzer(embeddingRepository, embeddingModel),
+      new SemanticTest3(embeddingRepository,embeddingModel),
+      new SemanticTest4(embeddingRepository,embeddingModel),
+      new SemanticTest5(embeddingRepository,embeddingModel),
+      new SemanticTest6(embeddingRepository,embeddingModel),
+      new SemanticTest7(embeddingRepository,embeddingModel),
     ];
 
     this.analyzerMap = new Map(
@@ -103,9 +115,9 @@ export class AnalysisEngine {
   ): Promise<Observation[]> {
     const cached = context.observations.get(analyzerId);
 
-    if (cached) {
-      return cached;
-    }
+    // if (cached) {
+    //   return cached;
+    // }
 
     const analyzer = this.analyzerMap.get(analyzerId);
 
@@ -127,10 +139,10 @@ export class AnalysisEngine {
       analyzerVersion: analyzer.version,
     });
 
-    if (existing.length > 0) {
-      context.observations.set(analyzerId, existing);
-      return existing;
-    }
+    // if (existing.length > 0) {
+    //   context.observations.set(analyzerId, existing);
+    //   return existing;
+    // }
 
     const start = performance.now();
     const observations = await analyzer.analyze(context);

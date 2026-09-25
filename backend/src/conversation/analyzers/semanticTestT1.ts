@@ -8,8 +8,8 @@ import {
 import { EmbeddingCollection } from "../persistence/embeddings/EmbeddingCollection";
 import { collectEmbeddableSubjects } from "../persistence/embeddings/utils";
 
-export class SemanticPostEmbeddingAnalyzer implements Analyzer {
-  readonly id = "semantic";
+export class SemanticPlaygroundEmbeddingAnalyzer implements Analyzer {
+  readonly id = "semantic-playground";
   readonly version = "1";
 
   readonly observationTypes = [

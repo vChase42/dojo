@@ -163,4 +163,8 @@ export class EmbeddingCollection {
       this.subject(subjectId).postIds,
     );
   }
+
+  async vector(text: string): Promise<Float32Array> {
+    return this.model.embed(text);
+  }
 }
